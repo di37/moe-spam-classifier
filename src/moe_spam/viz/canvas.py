@@ -49,17 +49,26 @@ class Canvas:
         """Writes ``text`` at figure coordinates ``(x, y)``."""
         return self.figure.text(x, y, text, **style)
 
-    def title(self, title, right=None):
-        """Writes the frame's title at the top left and, if given, a note at the top right."""
+    def title(self, title, right=None, **style):
+        """Writes the frame's title at the top left and, if given, a note at the top right.
+
+        Args:
+            title: The title.
+            right: The note, or None.
+            **style: Extra text properties for the note, e.g. ``math_fontfamily``.
+        """
         self.text(0.015, 0.955, title, fontsize=16, color=INK, weight="bold")
         if right is not None:
-            self.text(0.985, 0.955, right, ha="right", fontsize=13, color=INK_2)
+            self.text(0.985, 0.955, right, ha="right", fontsize=13, color=INK_2, **style)
 
     def heading(self, x, y, text):
         """Writes a section heading at ``(x, y)``."""
         self.text(x, y, text, fontsize=15, color=INK, weight="bold")
 
-    def caption(self, x, y, text, chars):
-        """Writes ``text`` wrapped at ``chars`` characters per line, hanging from ``(x, y)``."""
+    def caption(self, x, y, text, chars, **style):
+        """Writes ``text`` wrapped at ``chars`` characters per line, hanging from ``(x, y)``.
+
+        Extra ``style`` (text properties, e.g. ``math_fontfamily``) is passed on.
+        """
         self.text(x, y, "\n".join(textwrap.wrap(text, chars)), fontsize=12, color=INK_2,
-                  va="top")
+                  va="top", **style)

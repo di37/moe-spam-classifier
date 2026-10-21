@@ -195,16 +195,21 @@ The diagram and the equations below, animated with the trained model's own numbe
    with one line on what each box does.
 2. **One message through it:** the `[CLS]` token of a test spam travels through both layers;
    the router of each sends it to one expert, and the classifier reads it at the end.
-3. **`p = softmax(W_router · x)`:** for one word of that message in layer 1, each row of the
-   router's weights scores one expert, and softmax turns the scores into probabilities.
-4. **`i = argmax p`:** only the most likely expert runs; the other two do no work for it.
-5. **`y = p_i · FFN_i(x)`:** the token goes through that expert (64 → 256 → 64), and the
-   output is scaled by `p_i`.
-6. **Why multiply by `p_i`?** As expert i's score changes, the argmax only jumps, while `p_i`
-   changes smoothly. That slope is what lets the classification loss train the router; the
-   video shows the real `dL/dp_i` for this message.
-7. **Load balancing:** `f_i` and `P_i` of each expert over the test set, in both layers,
-   and the `aux` loss they add up to.
+3. **The router's softmax**, $`p = \mathrm{softmax}(W_{\text{router}}\,x)`$: for one word of
+   that message in layer 1, each row of the router's weights scores one expert, and softmax
+   turns the scores into probabilities.
+4. **The argmax**, $`i = \arg\max_j p_j`$: only the most likely expert runs; the other two do
+   no work for it.
+5. **The scaled output**, $`y = p_i \cdot \mathrm{FFN}_i(x)`$: the token goes through that
+   expert (64 → 256 → 64), and the output is scaled by $`p_i`$.
+6. **Why multiply by $`p_i`$?** As expert $`i`$'s score changes, the argmax only jumps, while
+   $`p_i`$ changes smoothly. That slope is what lets the classification loss train the router;
+   the video shows the real $`\partial L / \partial p_i`$ for this message.
+7. **Load balancing:** $`f_i`$ and $`P_i`$ of each expert over the test set, in both layers,
+   and the $`\mathrm{aux}`$ loss they add up to.
+
+The equations in the video are typeset in matplotlib's LaTeX-style mathtext, so no LaTeX
+installation is needed.
 
 ```mermaid
 flowchart LR
@@ -220,29 +225,32 @@ flowchart LR
     block --> cls["final [CLS]"] --> clf["classifier → p(spam)"]
 ```
 
-For each token `x` (after self-attention), the MoE layer does
+For each token $`x`$ (after self-attention), the MoE layer does
 ([Switch Transformer](https://arxiv.org/abs/2101.03961) routing):
 
-```
-p = softmax(W_router · x)     the router's probabilities over the 3 experts
-i = argmax p                  the one expert that runs on this token (top-1)
-y = p_i · FFN_i(x)            scaled by its probability
+```math
+\begin{aligned}
+p &= \mathrm{softmax}(W_{\text{router}}\, x) && \text{the router's probabilities over the 3 experts} \\
+i &= \operatorname*{arg\,max}_{j}\; p_j && \text{the one expert that runs on this token (top-1)} \\
+y &= p_i \cdot \mathrm{FFN}_i(x) && \text{its output, scaled by its probability}
+\end{aligned}
 ```
 
-The argmax has no gradient, so multiplying by `p_i` is what lets the classification loss
-teach the router: if expert `i`'s output helped, `p_i` goes up.
+The argmax has no gradient, so multiplying by $`p_i`$ is what lets the classification loss
+teach the router: if expert $`i`$'s output helped, $`p_i`$ goes up.
 
 Left alone, a router tends to send more and more to whichever expert is ahead, so training
 adds the Switch **load-balancing loss**:
 
-```
-aux  = 3 · Σ_i f_i · P_i      f_i: share of tokens sent to expert i (no gradient)
-                              P_i: the router's mean probability for expert i
-loss = binary cross-entropy + 0.01 · aux
+```math
+\mathrm{aux} = 3 \sum_{i=1}^{3} f_i \, P_i, \qquad
+\mathcal{L} = \mathrm{BCE} + 0.01 \cdot \mathrm{aux}
 ```
 
-`aux` is 1 when tokens and probability are spread evenly and 3 when everything goes to one
-expert. Pads are left out of both.
+where $`f_i`$ is the share of tokens sent to expert $`i`$ (no gradient flows through it),
+$`P_i`$ is the router's mean probability for expert $`i`$, and BCE is the binary
+cross-entropy. $`\mathrm{aux}`$ is 1 when tokens and probability are spread evenly and 3 when
+everything goes to one expert. Pads are left out of both.
 
 **Why bother with experts at all?** The MoE model has three times the FFN weights of the
 dense one (444,417 parameters against 311,809 in all), but each token still runs through one
@@ -406,9 +414,9 @@ Coverage is about 99%.
   direction: how spammy the message looks.
 - **The router never gets very sure.** With load balancing, the median top probability for
   `[CLS]` is 0.46 for ham and 0.38 for spam, not far above a three-way tie (0.33); for all
-  tokens it is 0.38–0.39. In top-1 routing a token's output is `p_i · FFN_i(x)`, and the
-  expert can make its output larger to make up for a small `p_i`, so nothing pushes `p_i`
-  towards 1. The load-balancing loss also rewards spreading probability. Without that loss,
+  tokens it is 0.38–0.39. In top-1 routing a token's output is $`p_i \cdot \mathrm{FFN}_i(x)`$,
+  and the expert can make its output larger to make up for a small $`p_i`$, so nothing pushes
+  $`p_i`$ towards 1. The load-balancing loss also rewards spreading probability. Without that loss,
   `[CLS]` routing reaches 0.67–0.78, which is why video 3 needs a much wider view.
 - **Without load balancing, layer 2 collapses but layer 1 mostly does not.** In layer 2, the
   busiest expert gets 74–83% of the tokens in all five seeds. In layer 1 it gets 36–62%, and

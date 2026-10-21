@@ -11,6 +11,7 @@ from moe_spam.paths import PATHS
 from moe_spam.viz.how_it_works.flowchart import PIECES, Flowchart
 from moe_spam.viz.how_it_works.router_panels import (
     LEFT,
+    MATH,
     draw_argmax,
     draw_balance,
     draw_equations,
@@ -27,6 +28,7 @@ from moe_spam.viz.how_it_works.script import (
     captions,
     equation_values,
     legend,
+    plain,
 )
 from moe_spam.viz.style import EXPERT_COLORS, INK, INK_2, MUTED
 from moe_spam.viz.video import FPS, Video
@@ -78,8 +80,8 @@ class HowItWorksVideo(Video):
     def draw(self, canvas, context, beat, t):
         """Draws one frame: the diagram on top, the scene's detail underneath."""
         scene = beat.step
-        canvas.title(TITLE, SCENE_TITLES[scene])
-        canvas.caption(0.015, 0.905, context[scene], CAPTION_CHARS)
+        canvas.title(TITLE, SCENE_TITLES[scene], **MATH)
+        canvas.caption(0.015, 0.905, context[scene], CAPTION_CHARS, **MATH)
         flow, detail = canvas.axes(FLOW_RECT), canvas.axes(DETAIL_RECT)
         setup(detail)
         if scene == "build":
@@ -99,7 +101,8 @@ class HowItWorksVideo(Video):
                 y = 23.6 - 2.45 * k
                 detail.text(1, y, name, fontsize=12.5, weight="bold", color=INK, va="center",
                             alpha=alpha)
-                detail.text(16, y, text, fontsize=12.5, color=INK_2, va="center", alpha=alpha)
+                detail.text(16, y, text, fontsize=12.5, color=INK_2, va="center", alpha=alpha,
+                            **MATH)
 
     def _draw_flow(self, flow, detail, t):
         """The [CLS] token travels through both layers; its choices are logged below."""
@@ -115,16 +118,17 @@ class HowItWorksVideo(Video):
                       if name == "experts"] + [1.0]
         verdict = "spam" if trace.p_spam > 0.5 else "ham"
         rows = [(EXPERT_COLORS[e], f"layer {n}: [CLS] → expert {e + 1}",
-                 f"p = {probs[e]:.2f}")
+                 f"$p = {probs[e]:.2f}$")
                 for n, (e, probs) in enumerate(zip(experts, trace.cls_probs, strict=True), 1)]
-        rows.append((INK, "classifier", f"p(spam) = {trace.p_spam:.3f}: {verdict}"))
-        detail.text(1, 23.4, f"“{trace.text}”", fontsize=11, color=MUTED, va="center")
+        rows.append((INK, "classifier",
+                     rf"$p(\mathrm{{spam}}) = {trace.p_spam:.3f}$: {verdict}"))
+        detail.text(1, 23.4, f"“{plain(trace.text)}”", fontsize=11, color=MUTED, va="center")
         for k, ((color, what, value), at) in enumerate(zip(rows, milestones, strict=True)):
             if t >= at - 1e-9:
                 y = 18.0 - 6.0 * k
                 detail.text(1, y, "●", fontsize=22, color=color, va="center")
                 detail.text(4.5, y, what, fontsize=17, color=INK, va="center", weight="bold")
-                detail.text(LEFT + 4, y, value, fontsize=17, color=INK_2, va="center")
+                detail.text(LEFT + 4, y, value, fontsize=19, color=INK_2, va="center", **MATH)
 
     def _draw_routing(self, canvas, flow, detail, scene, t):
         """One routing equation: the diagram's router lit, the equation and its drawing."""

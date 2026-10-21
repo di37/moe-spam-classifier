@@ -10,13 +10,25 @@ import math
 import numpy as np
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
 
-from moe_spam.viz.style import AXIS, EXPERT_COLORS, INK, INK_2, MONO, MUTED, blend, ink_on
+from moe_spam.viz.how_it_works.script import ROUTING, W_ROUTER
+from moe_spam.viz.style import (
+    AXIS,
+    EXPERT_COLORS,
+    INK,
+    INK_2,
+    MATH_FONT,
+    MONO,
+    MUTED,
+    blend,
+    ink_on,
+)
 from moe_spam.viz.video import ease
 
 WIDTH, HEIGHT = 100, 25
 LEFT = 36            # where the drawings start; the equations are to the left of it
 STRIP_X, CELL = 45, 0.7  # where the x and W_router strips start, and one number's width
 BAR_X, BAR_LENGTH = 45, 40  # where the probability bars start, and the length of p = 1
+MATH = {"math_fontfamily": MATH_FONT}  # for every text with an equation in it
 SCORES_SHARE = 0.65  # the softmax scene scores the experts in this share of its animation
 BALANCE_HEIGHT = 15  # the height of the tallest bar in the load-balancing scene
 
@@ -40,12 +52,11 @@ def draw_equations(ax, equations, current, values):
     y = HEIGHT - 2
     for k, equation in enumerate(equations):
         on = k == current
-        ax.text(1, y, equation, family=MONO, fontsize=17, va="center",
-                color=INK if on else MUTED, weight="bold" if on else "normal")
+        ax.text(1, y, equation, fontsize=19, va="center", color=INK if on else MUTED, **MATH)
         y -= 3.2
         if on:
             for line in values:
-                ax.text(2, y + 0.6, line, family=MONO, fontsize=12.5, va="center", color=INK_2)
+                ax.text(2, y + 0.6, line, fontsize=14, va="center", color=INK_2, **MATH)
                 y -= 2.3
             y -= 0.6
 
@@ -53,12 +64,12 @@ def draw_equations(ax, equations, current, values):
 def draw_softmax(ax, step, t):
     """``p = softmax(W_router · x)``: each row of weights scores one expert, then softmax."""
     vmax = np.abs(step.weights).max()  # the weights' own scale: they are much smaller than x
-    ax.text(LEFT, 21.7, "x", family=MONO, fontsize=15, weight="bold", va="center", color=INK)
+    ax.text(LEFT, 21.7, "$x$", fontsize=18, va="center", color=INK, **MATH)
     _cells(ax, STRIP_X, 21.0, step.x, CELL, 1.4, len(step.x), np.abs(step.x).max())
     ax.text(STRIP_X, 23.4, f"the token “{step.word}” after self-attention: {len(step.x)} "
             f"numbers", fontsize=10.5, va="center", color=INK_2)
-    ax.text(STRIP_X, 18.9, "W_router: one row of weights per expert", fontsize=10.5,
-            color=INK_2, va="center")
+    ax.text(STRIP_X, 18.9, f"{W_ROUTER}: one row of weights per expert", fontsize=10.5,
+            color=INK_2, va="center", **MATH)
     scored = t / SCORES_SHARE * len(step.probs)
     for e, (row, color) in enumerate(zip(step.weights, EXPERT_COLORS, strict=True)):
         y = 16.4 - 2.0 * e
@@ -69,8 +80,9 @@ def draw_softmax(ax, step, t):
             ax.add_patch(Rectangle((STRIP_X - 0.2, y - 0.2), CELL * len(row) + 0.4, 1.8,
                                    facecolor="none", edgecolor=INK, lw=1.6))
         if scored >= e + 1:
-            ax.text(STRIP_X + CELL * len(row) + 1, y + 0.7, f"score {step.logits[e]:+.2f}",
-                    family=MONO, fontsize=11, va="center", color=INK)
+            ax.text(STRIP_X + CELL * len(row) + 1, y + 0.7,
+                    rf"$w_{e + 1} \cdot x = {step.logits[e]:+.2f}$", fontsize=13, va="center",
+                    color=INK, **MATH)
     grow = ease((t - SCORES_SHARE) / (1 - SCORES_SHARE))
     if grow > 0:
         ax.text(LEFT, 9.6, "softmax of the 3 scores:", fontsize=10.5, color=INK_2, va="center")
@@ -81,8 +93,7 @@ def draw_bars(ax, probs, grow=1.0, winner=None):
     """The router's probabilities as one bar per expert, ``grow`` of their full length."""
     for e, (p, color) in enumerate(zip(probs, EXPERT_COLORS, strict=True)):
         y = 6.8 - 2.5 * e
-        ax.text(LEFT, y + 0.8, f"p{e + 1}", family=MONO, fontsize=12, va="center", color=color,
-                weight="bold")
+        ax.text(LEFT, y + 0.8, f"$p_{e + 1}$", fontsize=16, va="center", color=color, **MATH)
         ax.add_patch(Rectangle((BAR_X, y), BAR_LENGTH * p * grow, 1.6, facecolor=color,
                                edgecolor=INK if e == winner else "none", lw=2))
         ax.text(BAR_X + BAR_LENGTH * p * grow + 0.8, y + 0.8, f"{p:.2f}", family=MONO,
@@ -115,10 +126,11 @@ def draw_argmax(ax, step, d_ff, t):
 def draw_scale(ax, step, t):
     """``y = p_i · FFN_i(x)``: the token through the chosen expert, then scaled by ``p_i``."""
     i, out_max = step.expert, np.abs(step.ffn_out).max()
-    grids = ((step.x, f"x ({len(step.x)})", np.abs(step.x).max()),
+    ffn = rf"\mathrm{{FFN}}_{{{i + 1}}}(x)"
+    grids = ((step.x, f"$x$ ({len(step.x)})", np.abs(step.x).max()),
              (step.hidden, f"hidden ({len(step.hidden)}), after GELU", np.abs(step.hidden).max()),
-             (step.ffn_out, f"FFN_{i + 1}(x) ({len(step.ffn_out)})", out_max),
-             (step.y, f"y = {step.p_i:.2f} · FFN_{i + 1}(x)", out_max))
+             (step.ffn_out, f"${ffn}$ ({len(step.ffn_out)})", out_max),
+             (step.y, rf"$y = {step.p_i:.2f} \cdot {ffn}$", out_max))
     ax.text(LEFT, 21.5, f"expert {i + 1}: {len(step.x)} → {len(step.hidden)} → {len(step.x)}",
             fontsize=12, weight="bold", color=EXPERT_COLORS[i], va="center")
     shown = t * len(grids) * 1.1
@@ -127,15 +139,15 @@ def draw_scale(ax, step, t):
             break
         x0 = LEFT + 16.5 * k
         _grid(ax, x0, 8.0, values, 9.6, vmax, alpha=min(1.0, shown - k))
-        ax.text(x0 + 4.8, 6.6, label, ha="center", va="top", fontsize=10, color=INK_2)
+        ax.text(x0 + 4.8, 6.6, label, ha="center", va="top", fontsize=11, color=INK_2, **MATH)
         if k:
             ax.add_patch(FancyArrowPatch((x0 - 6.4, 12.8), (x0 - 0.5, 12.8), arrowstyle="-|>",
                                          mutation_scale=12, color=MUTED, lw=1.2))
-            ax.text(x0 - 3.45, 13.9, ("", "W₁, GELU", "W₂", f"× {step.p_i:.2f}")[k],
-                    ha="center", fontsize=10, color=INK if k == 3 else INK_2)
+            ax.text(x0 - 3.45, 13.9, ("", "$W_1$, GELU", "$W_2$", rf"$\times\,{step.p_i:.2f}$")[k],
+                    ha="center", fontsize=11, color=INK if k == 3 else INK_2, **MATH)
     if t >= 1:
-        ax.text(LEFT, 2.4, "y is then added back to the token (a residual connection), and the "
-                "token moves on.", fontsize=11, color=INK_2, va="center")
+        ax.text(LEFT, 2.4, "$y$ is then added back to the token (a residual connection), and "
+                "the token moves on.", fontsize=11, color=INK_2, va="center", **MATH)
 
 
 def draw_slopes(canvas, step, t, rects):
@@ -155,14 +167,14 @@ def draw_slopes(canvas, step, t, rects):
     p_i = np.exp(z) / (np.exp(z) + np.exp(others).sum())
     n, marked = max(2, int(len(z) * ease(t * 1.4))), t >= 0.6
 
-    ax = _slope_axes(canvas, rects[0], z, i, "i = argmax p: a step, with nothing to follow")
+    ax = _slope_axes(canvas, rects[0], z, i, f"{ROUTING[1]}: a step, with nothing to follow")
     ax.plot(z[:n], picked[:n], color=INK, lw=2, drawstyle="steps-post")
     ax.set_ylim(0.5, len(scores) + 0.5)
     ax.set_yticks(range(1, len(scores) + 1), [f"expert {e}" for e in range(1, len(scores) + 1)])
     if marked:
         ax.plot([scores[i]], [i + 1], "o", color=EXPERT_COLORS[i], ms=9, zorder=5)
 
-    ax = _slope_axes(canvas, rects[1], z, i, "p_i: smooth, with a slope everywhere")
+    ax = _slope_axes(canvas, rects[1], z, i, "$p_i$: smooth, with a slope everywhere")
     ax.plot(z[:n], p_i[:n], color=INK, lw=2)
     ax.set_ylim(0, 1)
     if marked:
@@ -175,7 +187,7 @@ def draw_slopes(canvas, step, t, rects):
 def _slope_axes(canvas, rect, z, i, title):
     ax = canvas.axes(rect)
     ax.set_xlim(z[0], z[-1])
-    ax.set_title(title, fontsize=11)
+    ax.set_title(title, fontsize=12, **MATH)
     ax.set_xlabel(f"expert {i + 1}'s score (the others fixed)", fontsize=10)
     ax.grid(color=AXIS, lw=0.5, alpha=0.6)
     return ax
@@ -200,8 +212,8 @@ def draw_balance(ax, balance, t):
                         fontsize=9, color=INK)
             ax.text(x + 3.4, 3.4, f"expert {e + 1}", ha="center", fontsize=10, color=INK_2,
                     va="top")
-    ax.text(LEFT, 0.6, "dark: f_i, the share of tokens sent to expert i      light: P_i, the "
-            "router's mean probability for it", fontsize=10, color=INK_2)
+    ax.text(LEFT, 0.6, "dark: $f_i$, the share of tokens sent to expert $i$      light: $P_i$, "
+            "the router's mean probability for it", fontsize=11, color=INK_2, **MATH)
 
 
 def _cells(ax, x0, y0, values, cell_w, cell_h, cols, vmax, alpha=1.0):

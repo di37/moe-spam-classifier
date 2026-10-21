@@ -20,6 +20,7 @@ ERROR = "#d03b3b"      # status "critical", used only for misclassified messages
 MONO = "DejaVu Sans Mono"  # ships with matplotlib, so the layout is the same everywhere
 CHAR_EM = 0.602            # advance width of one DejaVu Sans Mono character, in ems
 LINE_EM = 2.0              # height of one line of token boxes, in ems
+MATH_FONT = "cm"           # equations ($...$) in Computer Modern, LaTeX's own font
 
 DPI = 100
 FIGURE_PX = (1600, 900)
