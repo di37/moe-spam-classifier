@@ -8,12 +8,10 @@ from moe_spam.cli.common import Command, float_at_least, positive_int
 from moe_spam.data.dataset import SpamData
 from moe_spam.paths import PATHS
 from moe_spam.records import RecordStore
-from moe_spam.training.baselines import BagOfWordsBaseline, results_table
+from moe_spam.training.baselines import RECORD, RECORD_KEY, BagOfWordsBaseline, results_table
 from moe_spam.training.config import TrainingConfig
 from moe_spam.training.trainer import RECORD_PREFIX, Trainer
 from moe_spam.viz.training.frames import TrainingFrames
-
-BASELINES_RECORD = "baselines"
 
 
 class TrainCommand(Command):
@@ -86,8 +84,7 @@ class BaselinesCommand(Command):
         baseline = BagOfWordsBaseline()
         scores = baseline.run(SpamData.prepare()).as_dict()
         store = RecordStore()
-        store.write_json(BASELINES_RECORD, {"bag-of-words logistic regression": scores,
-                                            **baseline.as_record()})
+        store.write_json(RECORD, {RECORD_KEY: scores, **baseline.as_record()})
         runs = {"bag-of-words logreg": scores}
         for name, record in store.read_all(f"{RECORD_PREFIX}*").items():
             runs[name.removeprefix(RECORD_PREFIX)] = record["final_metrics"]

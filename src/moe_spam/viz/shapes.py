@@ -1,7 +1,6 @@
-"""The shapes the model diagram is drawn with: boxes, panels, arrows, leaders, a brace.
+"""Shapes for diagrams drawn on one axes covering the frame: boxes, panels, arrows, notes.
 
-Everything is drawn on one axes covering the frame, 160 × 90 units (10 pixels each), and
-fades in with ``alpha``.
+The axes is 160 × 90 units (10 pixels each), and every shape fades in with ``alpha``.
 """
 
 from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, PathPatch

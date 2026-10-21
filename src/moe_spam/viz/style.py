@@ -15,6 +15,7 @@ GRID = "#e1e0d9"
 AXIS = "#c3c2b7"
 SURFACE = "#fcfcfb"
 HIGHLIGHT = "#f0efec"  # neutral fill for whatever is being shown
+LAYER_COLORS = {"dense": MUTED, "wide": INK_2, "moe": INK}  # one FFN, one 3× wider, MoE
 ERROR = "#d03b3b"      # status "critical", used only for misclassified messages
 
 MONO = "DejaVu Sans Mono"  # ships with matplotlib, so the layout is the same everywhere

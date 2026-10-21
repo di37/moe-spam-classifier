@@ -32,6 +32,7 @@ def test_every_command_has_a_subparser():
     assert list(commands) == [c.name for c in COMMANDS]
     assert set(commands) == {"train", "baselines", "benchmark", "architecture-video",
                              "inference-video", "how-it-works-video", "model-diagram-video",
+                             "why-moe-video", "balancing-video", "exercises-video",
                              "encode-video"}
 
 
@@ -112,6 +113,43 @@ def test_model_diagram_video_draws_the_annotated_architecture(tiny_project, caps
     assert "message: " in out and "parameters" in out
     assert len(os.listdir("frames/model_diagram")) > 0
     assert not os.path.exists("frames/how_it_works")  # a video of its own
+
+
+def copy_run(source, *names):
+    """Saves the record of run ``source`` under other run names, as if they had been trained."""
+    for name in names:
+        for suffix in (".json", ".csv"):
+            shutil.copy(f"results/training_{source}{suffix}", f"results/training_{name}{suffix}")
+
+
+def test_why_moe_video_compares_the_dense_and_moe_runs(tiny_project, capsys):
+    main(["train", "--steps", "2", "--no-video"])
+    main(["train", "--steps", "2", "--experts", "1", "--no-video"])
+    with pytest.raises(MoeSpamError, match="moe-spam baselines"):
+        run(["why-moe-video", MOE, "--no-video"])
+    main(["baselines"])
+    copy_run("moe_steps2", "moe")
+    copy_run("dense_steps2", "dense")
+    main(["why-moe-video", MOE, "--fps", "1", "--no-video"])
+    assert "bag-of-words" in capsys.readouterr().out
+    assert len(os.listdir("frames/why_moe")) > 0
+
+
+def test_balancing_video_compares_five_seeds_with_and_without(tiny_project, capsys):
+    with pytest.raises(MoeSpamError, match="moe-spam train"):
+        run(["balancing-video", "--no-video"])
+    main(["train", "--steps", "2", "--no-video"])
+    main(["train", "--steps", "2", "--aux-weight", "0", "--no-video"])
+    copy_run("moe_steps2", "moe", *(f"moe_seed{s}" for s in range(1, 5)))
+    copy_run("moe_noaux_steps2", "moe_noaux", *(f"moe_noaux_seed{s}" for s in range(1, 5)))
+    main(["balancing-video", "--fps", "1", "--no-video"])
+    assert "layer 2 busiest expert" in capsys.readouterr().out
+    assert len(os.listdir("frames/balancing")) > 0
+
+
+def test_exercises_video_says_which_runs_it_needs(tiny_project):
+    with pytest.raises(MoeSpamError, match="moe-spam train"):
+        run(["exercises-video", "--no-video"])
 
 
 def test_how_it_works_video_needs_two_layers_of_three_experts(tiny_project):

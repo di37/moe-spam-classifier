@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from moe_spam.data.tokenizer import PAD
 from moe_spam.training.scores import COLUMNS, SpamScores
 
+RECORD = "baselines"                          # results/<RECORD>.json
+RECORD_KEY = "bag-of-words logistic regression"  # its scores, inside the record
 CELL_FORMATS = (".1%", "", "", "", ".3f")  # how results_table writes each of the COLUMNS
 
 

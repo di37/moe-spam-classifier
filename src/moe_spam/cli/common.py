@@ -4,6 +4,8 @@ import argparse
 import math
 from abc import ABC, abstractmethod
 
+from moe_spam.analysis.examples import ExampleFinder
+from moe_spam.viz.architecture.layout import PanelGrid, fits_on_screen
 from moe_spam.viz.encoder import FPS
 
 
@@ -73,3 +75,25 @@ def add_video_options(parser, checkpoint):
                         help=f"trained model to draw (default: {checkpoint})")
     add_fps_option(parser)
     parser.add_argument("--no-video", action="store_true", help="only draw the frames")
+
+
+def ranked_examples(checkpoint, data):
+    """Returns the example messages the videos show, chosen to fit on screen.
+
+    Args:
+        checkpoint: The trained model and its vocabulary.
+        data: The prepared ``SpamData``; the examples come from its test messages.
+
+    Returns:
+        ``{"spam": Pick, "ham": Pick}``.
+    """
+    size = PanelGrid.size()
+    return ExampleFinder(checkpoint.vocab).ranked(
+        checkpoint.model, list(data.test_messages), fits=lambda trace: fits_on_screen(trace, size))
+
+
+def finish(video, args):
+    """Renders ``video`` and, unless ``--no-video``, encodes it."""
+    print(f"drew {video.render()} frames")
+    if not args.no_video:
+        video.encode()

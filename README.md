@@ -15,6 +15,24 @@ learning where to send things, made the same way as the `ddpm-animation` trainin
 every frame runs the model on the same held-out messages, so two frames differ only because
 the weights changed.
 
+## Learning path: MoE in 7 steps
+
+The videos below double as a short course. Each step points to the video (and scene) that
+animates it; every number in them comes from the trained models and saved runs of this
+repository.
+
+| Step | Concept | Watch |
+| --- | --- | --- |
+| 1 | A standard Transformer block: one dense FFN for every token | [Why MoE](media/why_moe.mp4), scenes 1–2 |
+| 2 | Why MoE replaces that FFN with experts: capacity without compute | [Why MoE](media/why_moe.mp4), scenes 3–6 |
+| 3 | One token through the router: logits, softmax, top-1 expert | [How it works](media/how_it_works.mp4), scenes 3–5; [architecture diagram](media/model_diagram.mp4), scene 3 |
+| 4 | Expert collapse without load balancing | [Load balancing](media/balancing.mp4), scene 1; [video 3](media/training_moe_noaux.mp4) |
+| 5 | The auxiliary loss, and how routing changes with it | [Load balancing](media/balancing.mp4), scenes 2–5; [How it works](media/how_it_works.mp4), scene 7 |
+| 6 | Theoretical compute against measured latency | [Inference](media/inference.mp4) |
+| 7 | Exercises: change the experts or the balancing, predict, check | [Exercises](media/exercises.mp4) |
+
+For the whole picture first, start with [the architecture diagram](media/model_diagram.mp4).
+
 ## Videos
 
 ### 1. How the model reads a message
@@ -185,6 +203,70 @@ trained model's own numbers (`moe-spam model-diagram-video`):
 
 Every number is read from the trained checkpoint: the parameter counts are counted on the
 model itself, and the routing and p(spam) come from running it on the message.
+
+### 6. Why a mixture of experts?
+
+![Why a mixture of experts](media/why_moe.gif)
+
+[Full video (MP4)](media/why_moe.mp4)
+
+Steps 1 and 2 of the learning path (`moe-spam why-moe-video`). A Transformer block's FFN
+(64 → 256 → 64: 33,088 weights, 32,768 multiply-adds per token) is made 3× wider for more
+capacity (99,136 weights, but 98,304 multiply-adds per token), then cut into 3 experts with a
+router: 99,456 weights, yet only 32,960 multiply-adds per token. The tokens of a real test
+message are routed by the trained router, a chart puts capacity against compute, a heatmap
+shows what each trained expert specializes in, and the last scene is honest: on this small
+task, the dense model makes the fewest mistakes (15, against 16 and 17).
+
+### 7. Load balancing: why an MoE needs it
+
+![Load balancing](media/balancing.gif)
+
+[Full video (MP4)](media/balancing.mp4)
+
+Steps 4 and 5 (`moe-spam balancing-video`), from the saved runs of 5 seeds with and 5
+without the load-balancing loss:
+
+1. **Collapse:** without the loss, layer 2's busiest expert grows to 80% of the tokens,
+   step by step.
+2. **The loss:** $`\mathrm{aux} = 3\sum_i f_i P_i`$ during training: it climbs to 1.23
+   without the loss and stays at 1.00 with it.
+3. **Side by side:** layer 2 with the loss (busiest expert 36%) and without (80%).
+4. **Not luck:** across the seeds, layer 2's busiest expert gets 74–83% without the loss and
+   36–39% with it.
+5. **Accuracy:** 13–20 mistakes with the loss and 12–22 without: balancing keeps every
+   expert in use, it does not buy accuracy here.
+
+### 8. Exercises: predict, then check
+
+![Exercises](media/exercises.gif)
+
+[Full video (MP4)](media/exercises.mp4)
+
+Step 7 (`moe-spam exercises-video`). Six questions, each with three choices and a few
+seconds to predict before the real runs answer. The answers are worked out from the runs'
+numbers, not written by hand. Try them before you watch:
+
+1. Train without the load-balancing loss. In layer 2, what share of the tokens will the
+   busiest of the 3 experts get: about 33%, 50% or 80%?
+2. Is a balancing weight 10× smaller than ours (0.001) enough to stop the collapse?
+3. With a balancing weight 100× stronger (1.0), will the model make more mistakes?
+4. With 8 experts instead of 3, how many parameters does one token use?
+5. With 8 experts instead of 3, will the model make fewer mistakes?
+6. Does the MoE model answer one message faster than the dense model?
+
+<details>
+<summary>Answers (from this repository's runs)</summary>
+
+1. About 80% (80% for seed 0; 74–83% over 5 seeds). With the loss: 36%.
+2. No: at 0.001 the busiest expert still gets 76%. From 0.01 up it gets 34–36%.
+3. About the same: 15 mistakes at 1.0 against 17 at 0.01.
+4. About the same: the model grows from 444,417 to 775,937 parameters, but a token uses
+   312,705 (312,065 with 3 experts): one expert per layer.
+5. About the same: 15 mistakes with 8 experts, 17 with 3.
+6. Slower: 3.0 ms against 1.4 ms for one message.
+
+</details>
 
 ## Results after 800 steps (default settings)
 
@@ -381,6 +463,9 @@ moe-spam inference-video                # video 4: measures layers and both mode
 moe-spam inference-video --reuse        # video 4 again, with the timings already saved
 moe-spam how-it-works-video             # the diagram and routing equations, animated
 moe-spam model-diagram-video            # video 5: the architecture diagram, animated
+moe-spam why-moe-video                  # video 6: from one dense FFN to experts
+moe-spam balancing-video                # video 7: needs the 10 seed runs below
+moe-spam exercises-video                # video 8: needs the sweep runs below
 moe-spam benchmark                      # only the layer timings, into results/
 ```
 
@@ -390,6 +475,17 @@ evaluating, 30 s drawing 161 frames, 5 s encoding. It prints progress, saves the
 the frames to `frames/training_<run>/` and the video to `media/training_<run>.{mp4,gif}`.
 The run name is `moe`, `moe_noaux` or `dense`, followed by every setting that differs from
 its default (`moe_seed2`, `moe_steps400`), so runs never overwrite each other.
+
+Videos 7 and 8 compare runs, which take about a minute each without a video:
+
+```bash
+for seed in 1 2 3 4; do                 # video 7: 5 seeds (0 is above) with and without
+  moe-spam train --seed $seed --no-video
+  moe-spam train --seed $seed --aux-weight 0 --no-video
+done
+for k in 2 4 8; do moe-spam train --experts $k --no-video; done          # video 8
+for w in 0.001 0.1 1; do moe-spam train --aux-weight $w --no-video; done  # video 8
+```
 
 ### 4. Training options
 
@@ -532,6 +628,7 @@ src/moe_spam/
     history.py            what is logged at each evaluation
     scores.py             errors, accuracy and spam F1
     baselines.py          bag-of-words logistic regression and the results table
+    runs.py               finished runs read back: final numbers and history
   viz/
     style.py, canvas.py   colors, fonts and the 1600x900 figure every frame is drawn on
     video.py              Video: the base class that times, draws and encodes a scripted video
@@ -545,8 +642,12 @@ src/moe_spam/
                           script, video
     how_it_works/         the "how it works" video: the diagram, the routing equations'
                           drawings, script, video
-    model_diagram/        the architecture-diagram video: shapes, the stack, the zoomed-in
-                          MoE layer and expert, script, video
+    model_diagram/        the architecture-diagram video: the stack, the zoomed-in MoE layer
+                          and expert, the [CLS] log, script, video
+    why_moe/              video 6: the block that grows and splits, the charts, script, video
+    balancing/            video 7: collapse and the load-balancing loss, script, video
+    exercises/            video 8: the questions, the rules that answer them, video
+    shapes.py             boxes, panels, arrows and notes for the diagram videos
     motion.py             movement shared by the videos: a travelling token, a token stream
   cli/                    the moe-spam command: one Command class per subcommand
 tests/                    pytest suite

@@ -9,11 +9,20 @@ which only one piece runs for each token.
 from matplotlib.patches import Polygon, Rectangle
 
 from moe_spam.analysis.benchmark import LAYERS
-from moe_spam.viz.style import AXIS, EXPERT_COLORS, INK, INK_2, MONO, MUTED, SURFACE, ink_on
+from moe_spam.viz.style import (
+    AXIS,
+    EXPERT_COLORS,
+    INK,
+    INK_2,
+    LAYER_COLORS,
+    MONO,
+    MUTED,
+    SURFACE,
+    ink_on,
+)
 
 LANE_Y = {"dense": 82, "wide": 50, "moe": 18}  # lane centres, in a 0-100 panel
 BLOCK_X, BLOCK_W, BLOCK_H = 30, 20, 12  # where a d_ff-wide network starts, its width, height
-BAR_COLORS = {"dense": MUTED, "wide": INK_2, "moe": INK}
 LIT = INK_2  # fill of a dense network that is working on the token
 
 
@@ -124,7 +133,7 @@ def draw_bars(ax, values, names, x_max, title, fmt=amount, keys=LAYERS):
     """
     rows = range(len(keys))
     ax.barh(list(rows), [values[k] for k in keys], height=0.5,
-            color=[BAR_COLORS[k] for k in keys])
+            color=[LAYER_COLORS[k] for k in keys])
     for row, key in zip(rows, keys, strict=True):
         ax.text(values[key] + x_max * 0.015, row, fmt(values[key]), va="center",
                 fontsize=11, color=INK)

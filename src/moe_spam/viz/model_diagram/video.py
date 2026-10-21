@@ -22,7 +22,6 @@ from moe_spam.viz.model_diagram.script import (
     stack_notes,
     title,
 )
-from moe_spam.viz.model_diagram.shapes import HEIGHT, WIDTH
 from moe_spam.viz.model_diagram.stack import CX, PIECES, Stack
 from moe_spam.viz.model_diagram.zoom import (
     draw_ffn_module,
@@ -32,6 +31,7 @@ from moe_spam.viz.model_diagram.zoom import (
     draw_savings,
 )
 from moe_spam.viz.motion import draw_pulse, locate_in_steps, token_progress
+from moe_spam.viz.shapes import HEIGHT, WIDTH
 from moe_spam.viz.video import FPS, Video, ease
 
 CAPTION_CHARS = 170

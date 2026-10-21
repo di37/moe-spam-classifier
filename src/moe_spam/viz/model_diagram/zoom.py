@@ -8,8 +8,8 @@ import textwrap
 
 from matplotlib.patches import Rectangle
 
-from moe_spam.viz.model_diagram.shapes import arrow, badge, box, line, note, panel, plus
 from moe_spam.viz.model_diagram.stack import BOX_H, CX, Y
+from moe_spam.viz.shapes import arrow, badge, box, line, note, panel, plus
 from moe_spam.viz.style import AXIS, EXPERT_COLORS, GRID, INK, INK_2, MUTED, blend
 
 MOE_PANEL = (62.0, 12.0, 112.0, 46.0)

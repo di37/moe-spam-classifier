@@ -4,7 +4,7 @@ From the input text up: tokenizer, embeddings, the repeated encoder block (Layer
 self-attention, ⊕, LayerNorm, MoE, ⊕), the final LayerNorm and the output layer.
 """
 
-from moe_spam.viz.model_diagram.shapes import arrow, box, brace, line, note, panel, plus
+from moe_spam.viz.shapes import arrow, box, brace, line, note, panel, plus
 from moe_spam.viz.style import GRID, INK, INK_2, MONO, MUTED, SURFACE, ink_on
 
 CX, BOX_W, BOX_H = 37.0, 17.0, 2.8  # the stack's centre line, and its boxes' size

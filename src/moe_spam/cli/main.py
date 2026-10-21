@@ -3,6 +3,11 @@
 import argparse
 import sys
 
+from moe_spam.cli.lesson_commands import (
+    BalancingVideoCommand,
+    ExercisesVideoCommand,
+    WhyMoeVideoCommand,
+)
 from moe_spam.cli.training_commands import BaselinesCommand, BenchmarkCommand, TrainCommand
 from moe_spam.cli.video_commands import (
     ArchitectureVideoCommand,
@@ -15,6 +20,7 @@ from moe_spam.errors import MoeSpamError
 
 COMMANDS = (TrainCommand(), BaselinesCommand(), BenchmarkCommand(), ArchitectureVideoCommand(),
             InferenceVideoCommand(), HowItWorksVideoCommand(), ModelDiagramVideoCommand(),
+            WhyMoeVideoCommand(), BalancingVideoCommand(), ExercisesVideoCommand(),
             EncodeVideoCommand())
 
 
