@@ -231,7 +231,7 @@ For each token $`x`$ (after self-attention), the MoE layer does
 ```math
 \begin{aligned}
 p &= \mathrm{softmax}(W_{\text{router}}\, x) && \text{the router's probabilities over the 3 experts} \\
-i &= \operatorname*{arg\,max}_{j}\; p_j && \text{the one expert that runs on this token (top-1)} \\
+i &= \arg\max_{j}\; p_j && \text{the one expert that runs on this token (top-1)} \\
 y &= p_i \cdot \mathrm{FFN}_i(x) && \text{its output, scaled by its probability}
 \end{aligned}
 ```
