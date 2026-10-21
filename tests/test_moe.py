@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from moe import MoELayer, Routing, load_balancing_loss
+from moe_spam.model.moe import MoELayer, Routing
 
 D_MODEL, D_FF = 8, 16
 
@@ -201,7 +201,7 @@ def test_nan_pads_give_finite_gradients_and_none_flows_back_into_the_pads():
 def test_load_balancing_loss_is_one_when_routing_is_perfectly_balanced(n_experts):
     probs, expert = uniform_routing(n_experts, n_tokens=2 * n_experts)
     mask = torch.ones_like(expert, dtype=torch.bool)
-    loss = load_balancing_loss(probs, expert, mask, n_experts)
+    loss = Routing(probs, expert, mask).balance_loss()
     assert loss.item() == pytest.approx(1.0)
 
 
@@ -210,7 +210,7 @@ def test_load_balancing_loss_is_n_experts_when_routing_collapses_onto_one_expert
     expert = torch.zeros(1, 5, dtype=torch.long)
     probs = F.one_hot(expert, n_experts).float()
     mask = torch.ones_like(expert, dtype=torch.bool)
-    loss = load_balancing_loss(probs, expert, mask, n_experts)
+    loss = Routing(probs, expert, mask).balance_loss()
     assert loss.item() == pytest.approx(n_experts)
 
 
@@ -221,7 +221,7 @@ HAND_EXPERT = torch.tensor([[0, 1]])
 def test_load_balancing_loss_matches_a_hand_computed_value():
     # f = [1/2, 1/2, 0] and P = [0.4, 0.4, 0.2], so the loss is 3 * (0.2 + 0.2 + 0) = 1.2
     mask = torch.ones(1, 2, dtype=torch.bool)
-    loss = load_balancing_loss(HAND_PROBS, HAND_EXPERT, mask, 3)
+    loss = Routing(HAND_PROBS, HAND_EXPERT, mask).balance_loss()
     assert loss.item() == pytest.approx(1.2)
 
 
@@ -231,14 +231,14 @@ def test_load_balancing_loss_ignores_pads():
     probs = torch.cat([HAND_PROBS, F.one_hot(pad_expert, 3).float()], dim=1)
     expert = torch.cat([HAND_EXPERT, pad_expert], dim=1)
     mask = torch.tensor([[True, True, False, False]])
-    loss = load_balancing_loss(probs, expert, mask, 3)
+    loss = Routing(probs, expert, mask).balance_loss()
     assert loss.item() == pytest.approx(1.2)
 
 
 def test_load_balancing_loss_needs_real_tokens():
     probs, expert = uniform_routing(3, n_tokens=4)
     with pytest.raises(ValueError, match="real tokens"):
-        load_balancing_loss(probs, expert, torch.zeros_like(expert, dtype=torch.bool), 3)
+        Routing(probs, expert, torch.zeros_like(expert, dtype=torch.bool)).balance_loss()
 
 
 # --- gradients ------------------------------------------------------------------

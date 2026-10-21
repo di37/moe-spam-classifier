@@ -13,7 +13,7 @@
     "path": "checkpoints/dense.pt",
     "sha256": "43a9a18ab6eb516629720157e73abd32065d438cced43787f09d671b68650224"
   },
-  "command": "python train_moe.py --experts 1 --no-video",
+  "command": "moe-spam train --experts 1 --no-video",
   "environment": {
     "cpu": "Apple M4 Max",
     "device": "cpu",
@@ -58,8 +58,8 @@
     "training": 0
   },
   "wall_clock_s": {
-    "data_preparation": 0.09434429102111608,
-    "total": 52.941218915977515,
-    "training_and_evaluation": 52.6695675420342
+    "data_preparation": 0.09034137503476813,
+    "total": 53.68752362503437,
+    "training_and_evaluation": 53.43919654196361
   }
 }

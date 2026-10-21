@@ -5,89 +5,127 @@ import pytest
 import torch
 from PIL import Image
 
-from bert import BertConfig, TinyBert
-from checkpoint import load_checkpoint, save_checkpoint
-from run_log import read_csv, read_json, write_csv, write_json
-from video_creator import make_video, sorted_frames
-from vocab import Vocab, encode
+from moe_spam.data.vocab import Vocab
+from moe_spam.errors import MoeSpamError
+from moe_spam.model.bert import BertConfig, TinyBert
+from moe_spam.model.checkpoint import Checkpoint
+from moe_spam.records import RecordStore
+from moe_spam.viz.encoder import VideoEncoder
+
+
+def small_checkpoint(**sizes):
+    vocab = Vocab.build(["win a prize now", "see you at lunch"], min_count=1)
+    torch.manual_seed(0)
+    config = {"vocab_size": len(vocab), "max_len": 16, "d_model": 16, "n_heads": 2, "d_ff": 32,
+              **sizes}
+    return Checkpoint(TinyBert(BertConfig(**config)).eval(), vocab)
 
 
 def test_checkpoint_round_trip(tmp_path):
-    vocab = Vocab.build(["win a prize now", "see you at lunch"], min_count=1)
-    torch.manual_seed(0)
-    model = TinyBert(BertConfig(vocab_size=len(vocab), max_len=16, d_model=16, n_heads=2,
-                                d_ff=32)).eval()
+    saved = small_checkpoint()
     path = tmp_path / "ckpt" / "moe.pt"
-    save_checkpoint(str(path), model, vocab)
-    loaded, loaded_vocab = load_checkpoint(str(path))
-    ids = encode(vocab, ["win a prize", "see you"], max_len=16)
+    saved.save(path)
+    loaded = Checkpoint.load(path)
+    ids = saved.vocab.encode(["win a prize", "see you"], max_len=16)
     with torch.no_grad():
-        assert torch.equal(loaded(ids).logits, model(ids).logits)
-    assert loaded_vocab == vocab
-    assert loaded.config == model.config
-    assert not loaded.training
+        assert torch.equal(loaded.model(ids).logits, saved.model(ids).logits)
+    assert loaded.vocab == saved.vocab
+    assert loaded.model.config == saved.model.config
+    assert not loaded.model.training
 
 
-def test_load_checkpoint_explains_a_missing_file(tmp_path):
-    with pytest.raises(SystemExit, match="not found"):
-        load_checkpoint(str(tmp_path / "nope.pt"))
+def test_require_checks_the_sizes_a_command_needs():
+    checkpoint = small_checkpoint()
+    assert checkpoint.require(n_layers=2, n_experts=3) is checkpoint
+    with pytest.raises(MoeSpamError, match="n_experts"):
+        checkpoint.require(n_experts=4)
 
 
-def test_load_checkpoint_refuses_foreign_files(tmp_path):
+def test_load_explains_a_missing_file(tmp_path):
+    with pytest.raises(MoeSpamError, match="not found"):
+        Checkpoint.load(tmp_path / "nope.pt")
+
+
+def test_load_refuses_foreign_files(tmp_path):
     garbage = tmp_path / "garbage.pt"
     garbage.write_bytes(b"not a checkpoint")
-    with pytest.raises(SystemExit, match="could not read"):
-        load_checkpoint(str(garbage))
+    with pytest.raises(MoeSpamError, match="could not read"):
+        Checkpoint.load(garbage)
     other = tmp_path / "other.pt"
     torch.save({"model": {}}, other)
-    with pytest.raises(SystemExit, match="missing"):
-        load_checkpoint(str(other))
+    with pytest.raises(MoeSpamError, match="missing"):
+        Checkpoint.load(other)
 
 
-def test_load_checkpoint_refuses_weights_that_do_not_fit_the_config(tmp_path):
-    vocab = Vocab.build(["a b"], min_count=1)
-    model = TinyBert(BertConfig(vocab_size=len(vocab), max_len=8, d_model=16, n_heads=2, d_ff=32))
+def test_load_refuses_weights_that_do_not_fit_the_config(tmp_path):
     path = tmp_path / "bad.pt"
-    save_checkpoint(str(path), model, vocab)
+    small_checkpoint(max_len=8).save(path)
     ckpt = torch.load(path, weights_only=True)
     torch.save({**ckpt, "config": {**ckpt["config"], "d_ff": 64}}, path)
-    with pytest.raises(SystemExit, match="do not match"):
-        load_checkpoint(str(path))
+    with pytest.raises(MoeSpamError, match="do not match"):
+        Checkpoint.load(path)
 
 
-def test_load_checkpoint_refuses_a_vocabulary_that_does_not_fit(tmp_path):
-    vocab = Vocab.build(["a b c"], min_count=1)
-    model = TinyBert(BertConfig(vocab_size=len(vocab), max_len=8, d_model=16, n_heads=2, d_ff=32))
+def test_load_refuses_a_vocabulary_that_does_not_fit(tmp_path):
     path = tmp_path / "ckpt.pt"
-    save_checkpoint(str(path), model, vocab)
+    small_checkpoint(max_len=8).save(path)
     ckpt = torch.load(path, weights_only=True)
     torch.save({**ckpt, "vocab": ckpt["vocab"][:-1]}, path)
-    with pytest.raises(SystemExit, match="vocabulary"):
-        load_checkpoint(str(path))
+    with pytest.raises(MoeSpamError, match="vocabulary"):
+        Checkpoint.load(path)
     torch.save({**ckpt, "config": {**ckpt["config"], "n_heads": 3}}, path)
-    with pytest.raises(SystemExit, match="do not match"):
-        load_checkpoint(str(path))
+    with pytest.raises(MoeSpamError, match="do not match"):
+        Checkpoint.load(path)
 
 
-def test_csv_and_json_round_trip(tmp_path):
-    write_csv(str(tmp_path / "r" / "h.csv"), [{"step": 0, "loss": 0.5}, {"step": 8, "loss": 0.25}])
-    assert read_csv(str(tmp_path / "r" / "h.csv")) == [{"step": "0", "loss": "0.5"},
-                                                      {"step": "8", "loss": "0.25"}]
-    write_json(str(tmp_path / "r.json"), {"b": 1, "a": [1, 2]})
-    assert read_json(str(tmp_path / "r.json")) == {"a": [1, 2], "b": 1}
+def test_load_refuses_a_vocabulary_without_the_special_tokens(tmp_path):
+    path = tmp_path / "ckpt.pt"
+    small_checkpoint().save(path)
+    ckpt = torch.load(path, weights_only=True)
+    torch.save({**ckpt, "vocab": ["hello", *ckpt["vocab"][1:]]}, path)
+    with pytest.raises(MoeSpamError, match="special"):
+        Checkpoint.load(path)
+
+
+def test_record_store_round_trips_csv_and_json(tmp_path):
+    store = RecordStore(tmp_path / "r[1]")  # glob characters in the folder name are no problem
+    store.write_csv("h", [{"step": 0, "loss": 0.5}, {"step": 8, "loss": 0.25}])
+    assert store.read_csv("h") == [{"step": "0", "loss": "0.5"}, {"step": "8", "loss": "0.25"}]
+    store.write_json("training_a", {"b": 1, "a": [1, 2]})
+    store.write_json("training_b", {"c": 3})
+    store.write_json("other", {})
+    assert store.read_json("training_a") == {"a": [1, 2], "b": 1}
+    assert list(store.read_all("training_*")) == ["training_a", "training_b"]
     with pytest.raises(ValueError, match="at least one row"):
-        write_csv(str(tmp_path / "empty.csv"), [])
+        store.write_csv("empty", [])
+    assert set(store.environment()) >= {"os", "python", "packages"}
+    assert len(store.sha256(store.path("other", ".json"))) == 64
+    assert store.command().startswith("moe-spam ")  # no absolute paths in the records
 
 
-def test_make_video_writes_mp4_and_gif_in_numeric_order(tmp_path):
+def test_encoder_writes_mp4_and_gif_in_numeric_order(tmp_path):
     folder = tmp_path / "frames"
     folder.mkdir()
     for step in (0, 8, 16, 100):
         pixels = np.full((45, 81, 3), min(255, step * 2), dtype=np.uint8)
         Image.fromarray(pixels).save(folder / f"{step:07d}.jpg")
-    assert [os.path.basename(p) for p in sorted_frames(str(folder))] == [
+    assert [os.path.basename(p) for p in VideoEncoder.sorted_frames(folder)] == [
         "0000000.jpg", "0000008.jpg", "0000016.jpg", "0000100.jpg"]
-    make_video(str(folder), str(tmp_path / "media" / "run"), gif_width=40, gif_every=2)
+    VideoEncoder(gif_width=40, gif_every=2).encode(folder, tmp_path / "media" / "run")
     assert (tmp_path / "media" / "run.mp4").stat().st_size > 0
     with Image.open(tmp_path / "media" / "run.gif") as gif:
         assert gif.size == (40, 22)
+
+
+def test_encoder_refuses_an_empty_or_missing_folder(tmp_path):
+    with pytest.raises(MoeSpamError, match="no frames"):
+        VideoEncoder().encode(tmp_path, tmp_path / "out")
+    with pytest.raises(MoeSpamError, match="not found"):
+        VideoEncoder().encode(tmp_path / "missing", tmp_path / "out")
+
+
+@pytest.mark.parametrize("bad", [{"gif_every": 0}, {"fps": 0}, {"fps": -3}, {"gif_width": 0},
+                                 {"hold_last": -1.0}])
+def test_encoder_refuses_bad_settings(bad):
+    with pytest.raises(ValueError, match=next(iter(bad))):
+        VideoEncoder(**bad)

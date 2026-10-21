@@ -44,18 +44,20 @@ lit up:
    (0.46), as it does for all 903 test ham messages.
 7. **Classifier:** only the final `[CLS]` is read, to give p(spam).
 
-Run `python architecture_video.py` after training to make it again. It picks the examples
+Run `moe-spam architecture-video` after training to make it again. It picks the examples
 from the test set by itself: messages the model gets right, with no unknown words and at
 most 24 tokens (so they fit on screen), whose layer-2 `[CLS]` goes where most of their class
 goes, preferring ones with little punctuation.
 
-### 2. Training
+### 2. Training, with load balancing
 
-![MoE training](media/training_moe.gif)
+![MoE training with load balancing](media/training_moe.gif)
 
 [Full video (MP4)](media/training_moe.mp4)
 
-Step 0 is the untrained model; then one frame every 5 training steps. Each frame shows:
+Step 0 is the untrained model; then one frame every 5 training steps. The title says whether
+the run uses the load-balancing loss: this one does, with weight 0.01 (the default). Each frame
+shows:
 
 - **Left: where each message goes in layer 2.** One point per test message (1,027 of them;
   hollow circles are ham, filled triangles spam, red crosses the ones the model gets wrong).
@@ -84,8 +86,8 @@ Step 0 is the untrained model; then one frame every 5 training steps. Each frame
 
 [Full video (MP4)](media/training_moe_noaux.mp4)
 
-The same model, data and seed, with the load-balancing loss switched off (`--aux-weight 0`).
-The router becomes far more sure of itself, and layer 2 piles most tokens onto one expert
+The same model, data and seed, with the load-balancing loss switched off (`--aux-weight 0`);
+the title of every frame says so. The router becomes far more sure of itself, and layer 2 piles most tokens onto one expert
 (bottom right).
 
 ### 4. How a mixture of experts speeds up inference
@@ -107,7 +109,7 @@ layer does a third of the wide layer's work while holding the same weights: **Mo
 compute, not memory.**
 
 The last three scenes measure what that is worth in time, on this computer (Apple M4 Max, CPU),
-with `inference_benchmark.py`. These are the numbers in the video; they vary between runs, most
+by `moe-spam inference-video`. These are the numbers in the video; they vary between runs, most
 at this project's tiny size.
 
 **4. Many tokens at once (throughput):** one layer, batches of 8,192 tokens, time per 1,000
@@ -162,7 +164,7 @@ On the 1,027 test messages (124 spam, 903 ham):
 
 | Run | Errors | Spam missed | Ham flagged | Spam F1 |
 | --- | --- | --- | --- | --- |
-| Bag-of-words logistic regression (`baselines.py`) | 16 | 15 | 1 | 0.932 |
+| Bag-of-words logistic regression (`moe-spam baselines`) | 16 | 15 | 1 | 0.932 |
 | Dense tiny BERT, 1 expert (`--experts 1`) | 15 | 14 | 1 | 0.936 |
 | MoE, 3 experts, seed 0 (video 2) | 17 | 12 | 5 | 0.929 |
 | MoE, seeds 0–4 | 13–20 | 10–12 | 3–9 | 0.919–0.946 |
@@ -181,6 +183,28 @@ What does differ is the routing, over the same five seeds:
 | Busiest expert's share of layer-1 tokens | 35–40% | 36–62% |
 
 ## How it works
+
+![How the model works](media/how_it_works.gif)
+
+[Full video (MP4)](media/how_it_works.mp4)
+
+The diagram and the equations below, animated with the trained model's own numbers
+(`moe-spam how-it-works-video`):
+
+1. **The model, box by box:** the diagram is built in the order a message goes through it,
+   with one line on what each box does.
+2. **One message through it:** the `[CLS]` token of a test spam travels through both layers;
+   the router of each sends it to one expert, and the classifier reads it at the end.
+3. **`p = softmax(W_router · x)`:** for one word of that message in layer 1, each row of the
+   router's weights scores one expert, and softmax turns the scores into probabilities.
+4. **`i = argmax p`:** only the most likely expert runs; the other two do no work for it.
+5. **`y = p_i · FFN_i(x)`:** the token goes through that expert (64 → 256 → 64), and the
+   output is scaled by `p_i`.
+6. **Why multiply by `p_i`?** As expert i's score changes, the argmax only jumps, while `p_i`
+   changes smoothly. That slope is what lets the classification loss train the router; the
+   video shows the real `dL/dp_i` for this message.
+7. **Load balancing:** `f_i` and `P_i` of each expert over the test set, in both layers,
+   and the `aux` loss they add up to.
 
 ```mermaid
 flowchart LR
@@ -276,11 +300,20 @@ learns from the ham/spam labels alone.
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
-Needs Python 3.10 or newer; everything runs on the CPU. `imageio-ffmpeg` brings its own
-ffmpeg.
+This installs the `moe_spam` package (editable, from `src/`), the `moe-spam` command and the
+test tools. Needs Python 3.10 or newer; everything runs on the CPU. `imageio-ffmpeg` brings
+its own ffmpeg.
+
+To get the exact library versions the videos were made with (font rendering and timings can
+differ slightly between versions), install those first:
+
+```bash
+pip install -r requirements-lock.txt
+pip install -e . --no-deps
+```
 
 ### 2. Get the data
 
@@ -293,19 +326,25 @@ curl -L -o data/raw/sms_spam_collection.zip "https://archive.ics.uci.edu/static/
 unzip data/raw/sms_spam_collection.zip -d data/raw/sms
 ```
 
-The scripts check the file's SHA-256
+The commands check the file's SHA-256
 (`7d039a24a6083ed9ef0f806ebad56bbb976e3aeb8de05669173bfdc4996c239d`) and refuse anything else.
 
 ### 3. Train
 
+Run every command from the repository root (the data, results and videos are found by
+paths relative to it). `moe-spam --help` lists the commands, `moe-spam <command> --help` their
+options, and `python -m moe_spam` works the same as `moe-spam`.
+
 ```bash
-python train_moe.py                          # video 2
-python train_moe.py --aux-weight 0           # video 3
-python train_moe.py --experts 1 --no-video   # the dense model, for comparison
-python baselines.py                          # the bag-of-words model and the results table
-python architecture_video.py                 # video 1, from the trained model in checkpoints/
-python inference_video.py                    # video 4: measures layers and both models, then draws
-python inference_benchmark.py                # only the layer timings, into results/
+moe-spam train                          # video 2
+moe-spam train --aux-weight 0           # video 3
+moe-spam train --experts 1 --no-video   # the dense model, for comparison
+moe-spam baselines                      # the bag-of-words model and the results table
+moe-spam architecture-video             # video 1, from the trained model in checkpoints/
+moe-spam inference-video                # video 4: measures layers and both models, then draws
+moe-spam inference-video --reuse        # video 4 again, with the timings already saved
+moe-spam how-it-works-video             # the diagram and routing equations, animated
+moe-spam benchmark                      # only the layer timings, into results/
 ```
 
 A run with a video takes about 100 seconds on an Apple M4 Max: about 60 s training and
@@ -315,7 +354,7 @@ the frames to `frames/training_<run>/` and the video to `media/training_<run>.{m
 The run name is `moe`, `moe_noaux` or `dense`, followed by every setting that differs from
 its default (`moe_seed2`, `moe_steps400`), so runs never overwrite each other.
 
-### 4. Options
+### 4. Training options
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -331,16 +370,20 @@ its default (`moe_seed2`, `moe_steps400`), so runs never overwrite each other.
 To rebuild a video from saved frames:
 
 ```bash
-python video_creator.py frames/training_moe media/training_moe
+moe-spam encode-video frames/training_moe media/training_moe
 ```
+
+The video commands take the checkpoint to draw (by default `checkpoints/moe.pt`), `--fps`
+and `--no-video` (only draw the frames).
 
 ### 5. Tests
 
 ```bash
-python -m pytest
+python -m pytest --cov     # tests and coverage
+ruff check .               # style, imports and Google-style docstrings
 ```
 
-About 120 tests, in about 15 seconds. Among other things they check that:
+About 190 tests, in about 40 seconds. Among other things they check that:
 
 - An MoE layer with one expert is exactly the dense FFN.
 - The sparse dispatch matches a dense "sum over all experts" reference.
@@ -349,7 +392,7 @@ About 120 tests, in about 15 seconds. Among other things they check that:
 - The router learns from the classification loss alone.
 - A seeded run reproduces exactly.
 
-Coverage is about 98%.
+Coverage is about 99%.
 
 ## Things worth noticing
 
@@ -420,31 +463,57 @@ Coverage is about 98%.
 
 ## Project layout
 
+The code is one package, `moe_spam`, in `src/`. Its sub-packages depend on each other in one
+direction only: `data` → `model` → `analysis` → `training` → `viz` → `cli`.
+
 ```
-train_moe.py      training loop, evaluation on the test set, frames, run record (the entry point)
-architecture_video.py  the "how the model reads a message" video: steps, captions, rendering
-architecture_panels.py its drawings: the map of the model and one drawing per step
-walkthrough.py    follow one message through a trained model; pick the example messages
-inference_video.py     the "how MoE speeds up inference" video: scenes, captions, rendering
-inference_panels.py    its drawings: the three layers side by side and the bar charts
-inference_benchmark.py count the work and weights of dense vs MoE layers, and time them
-moe.py            the MoE layer: router, top-1 dispatch, load-balancing loss
-bert.py           the tiny BERT: embeddings, encoder blocks with MoE layers, [CLS] classifier
-dataset.py        load, deduplicate, split, build the vocabulary, encode
-sms_data.py       the SMS Spam Collection: reading, checksum, deduplication, split
-vocab.py          tokenizer, vocabulary, encoding, token groups for the heatmap
-panels.py         one drawing function per frame panel
-frames.py         the frame layout and the recorder that keeps the history and draws the frames
-video_creator.py  frames -> MP4 + GIF
-baselines.py      bag-of-words logistic regression and the results table
-checkpoint.py     save and load a trained model with its settings and vocabulary
-run_log.py        run records: environment, timings, CSV/JSON output
-tests/            pytest suite
-results/          run records written by the scripts
-media/            the training videos and GIFs
-frames/           per-step frames (generated)
-checkpoints/      trained models (generated)
-data/raw/         the downloaded dataset (not included)
+pyproject.toml            package metadata, dependencies, the moe-spam command, pytest and ruff
+src/moe_spam/
+  paths.py                where the data, results, checkpoints, frames and videos go
+  errors.py               MoeSpamError: problems the user can fix, reported without a traceback
+  records.py              run records: CSV/JSON output, environment, file hashes
+  data/
+    sms.py                the SMS Spam Collection: reading, checksum, deduplication, split
+    tokenizer.py          words, numbers ([NUM], [NUM5+]) and punctuation
+    vocab.py              vocabulary, encoding, token groups for the heatmap
+    dataset.py            SpamData: the split, vocabulary and encoded messages, in one object
+  model/
+    moe.py                the MoE layer: router, top-1 dispatch, load-balancing loss
+    bert.py               the tiny BERT: embeddings, encoder blocks, [CLS] classifier
+    checkpoint.py         save and load a trained model with its settings and vocabulary
+    modes.py              run a model in eval mode and give its mode back
+  analysis/
+    trace.py              follow one message through a trained model
+    examples.py           pick the example messages the videos show
+    routing.py            the router's arithmetic for one token, and each layer's balance
+    benchmark.py          count the work and weights of dense vs MoE layers, and time them
+  training/
+    config.py             TrainingConfig: every setting, its default and the run name
+    trainer.py            the training loop, EMA weights, checkpoint and run record
+    evaluator.py          test-set metrics and the routing state each frame shows
+    history.py            what is logged at each evaluation
+    scores.py             errors, accuracy and spam F1
+    baselines.py          bag-of-words logistic regression and the results table
+  viz/
+    style.py, canvas.py   colors, fonts and the 1600x900 figure every frame is drawn on
+    video.py              Video: the base class that times, draws and encodes a scripted video
+    encoder.py            frames -> MP4 + GIF
+    ternary.py            the routing triangle
+    panels.py             token rows, heatmap, load strips, curves
+    training/frames.py    the training video's frames
+    architecture/         the "how the model reads a message" video: layout, model map,
+                          one drawing per step, script (beats and captions), video
+    inference/            the "how MoE speeds up inference" video: lanes and bar charts,
+                          script, video
+    how_it_works/         the "how it works" video: the diagram, the routing equations'
+                          drawings, script, video
+  cli/                    the moe-spam command: one Command class per subcommand
+tests/                    pytest suite
+results/                  run records written by the commands
+media/                    the videos and GIFs
+frames/                   per-frame images (generated)
+checkpoints/              trained models (generated)
+data/raw/                 the downloaded dataset (not included)
 ```
 
 ## Data and credits

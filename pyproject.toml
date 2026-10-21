@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "moe-spam-classifier"
+version = "0.1.0"
+description = "A tiny BERT with mixture-of-experts layers, built from scratch in PyTorch to classify SMS spam, with videos of its training, routing and inference."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.6", "numpy", "matplotlib>=3.6", "pillow", "imageio-ffmpeg"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ruff"]
+
+[project.scripts]
+moe-spam = "moe_spam.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/moe_spam"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+extend-select = ["D"]
+ignore = ["D105", "D107"]  # magic methods and __init__ are described by their class
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]

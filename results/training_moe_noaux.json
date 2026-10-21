@@ -13,7 +13,7 @@
     "path": "checkpoints/moe_noaux.pt",
     "sha256": "c696e7f0b476a39e1797b90ed3463fd76dfc44eec1f9d057cadb28d9b6157555"
   },
-  "command": "python train_moe.py --aux-weight 0",
+  "command": "moe-spam train --aux-weight 0",
   "environment": {
     "cpu": "Apple M4 Max",
     "device": "cpu",
@@ -66,10 +66,10 @@
     "training": 0
   },
   "wall_clock_s": {
-    "data_preparation": 0.11761229101102799,
-    "drawing_frames": 32.09344895801041,
-    "total": 101.2354995830101,
-    "training_and_evaluation": 64.2099492920097,
-    "video_encoding": 4.5969692910439335
+    "data_preparation": 0.09620566701050848,
+    "drawing_frames": 34.67633616703097,
+    "total": 106.38472145906417,
+    "training_and_evaluation": 66.65605495800264,
+    "video_encoding": 4.758068208000623
   }
 }

@@ -2,8 +2,8 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from bert import BertConfig, TinyBert
-from vocab import CLS, PAD
+from moe_spam.data.tokenizer import CLS, PAD
+from moe_spam.model.bert import BertConfig, TinyBert
 
 
 def small_model(n_experts=3, seed=0, max_len=24):

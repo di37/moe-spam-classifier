@@ -13,7 +13,7 @@
     "path": "checkpoints/moe.pt",
     "sha256": "210a684b35f972adca2d89745f21298ff1f544ff74cf3f092333057094c5153b"
   },
-  "command": "python train_moe.py",
+  "command": "moe-spam train",
   "environment": {
     "cpu": "Apple M4 Max",
     "device": "cpu",
@@ -66,10 +66,10 @@
     "training": 0
   },
   "wall_clock_s": {
-    "data_preparation": 0.13111345801735297,
-    "drawing_frames": 32.92829054198228,
-    "total": 100.49876170803327,
-    "training_and_evaluation": 62.46545945800608,
-    "video_encoding": 4.753184208006132
+    "data_preparation": 0.08950000000186265,
+    "drawing_frames": 34.28494254202815,
+    "total": 103.36446870904183,
+    "training_and_evaluation": 63.91676620900398,
+    "video_encoding": 4.87819237500662
   }
 }
