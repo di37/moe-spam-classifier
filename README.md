@@ -184,7 +184,7 @@ What does differ is the routing, over the same five seeds:
 
 ## How it works
 
-![How the model works](media/how_it_works.gif)
+![How Tiny BERT + Mixture of Experts works](media/how_it_works.gif)
 
 [Full video (MP4)](media/how_it_works.mp4)
 

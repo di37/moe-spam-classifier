@@ -33,7 +33,7 @@ from moe_spam.viz.how_it_works.script import (
 from moe_spam.viz.style import EXPERT_COLORS, INK, INK_2, MUTED
 from moe_spam.viz.video import FPS, Video
 
-TITLE = "How the model works"
+TITLE = "How Tiny BERT + Mixture of Experts works"
 CAPTION_CHARS = 170
 FLOW_RECT = [0.015, 0.50, 0.97, 0.335]
 DETAIL_RECT = [0.015, 0.03, 0.97, 0.43]

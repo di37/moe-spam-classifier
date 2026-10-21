@@ -25,7 +25,7 @@ from moe_spam.viz.how_it_works.script import (
     plain,
     scientific,
 )
-from moe_spam.viz.how_it_works.video import CAPTION_CHARS, HowItWorksVideo
+from moe_spam.viz.how_it_works.video import CAPTION_CHARS, TITLE, HowItWorksVideo
 from moe_spam.viz.style import FIGURE_PX, MATH_FONT
 
 TEXTS = ["win a prize call 0800 now", "see you at lunch", "win cash now call 09061701461"]
@@ -115,6 +115,10 @@ def test_every_equation_is_valid_math():
         figure.text(0, 0, text, math_fontfamily=MATH_FONT)
     figure.canvas.draw()  # raises on any malformed math
     plt.close(figure)
+
+
+def test_title_names_the_model():
+    assert TITLE == "How Tiny BERT + Mixture of Experts works"
 
 
 def test_render_writes_every_frame(tmp_path):
