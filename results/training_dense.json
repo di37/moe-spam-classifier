@@ -1,0 +1,65 @@
+{
+  "args": {
+    "aux_weight": 0.01,
+    "batch_size": 64,
+    "experts": 1,
+    "frame_every": 5,
+    "lr": 0.001,
+    "no_video": true,
+    "seed": 0,
+    "steps": 800
+  },
+  "checkpoint": {
+    "path": "checkpoints/dense.pt",
+    "sha256": "43a9a18ab6eb516629720157e73abd32065d438cced43787f09d671b68650224"
+  },
+  "command": "python train_moe.py --experts 1 --no-video",
+  "environment": {
+    "cpu": "Apple M4 Max",
+    "device": "cpu",
+    "machine": "arm64",
+    "os": "Darwin 25.3.0",
+    "packages": {
+      "imageio-ffmpeg": "0.6.0",
+      "matplotlib": "3.11.2",
+      "numpy": "2.5.4",
+      "pillow": "13.0.0",
+      "torch": "2.14.1"
+    },
+    "python": "3.12.10",
+    "torch_threads": 12
+  },
+  "final_metrics": {
+    "accuracy": 0.98539435248296,
+    "errors": 15,
+    "ham flagged": 1,
+    "layer 1 load": [
+      1.0
+    ],
+    "layer 2 [CLS] top-1 expert, ham messages": [
+      1.0
+    ],
+    "layer 2 [CLS] top-1 expert, spam messages": [
+      1.0
+    ],
+    "layer 2 load": [
+      1.0
+    ],
+    "spam F1": 0.9361702127659575,
+    "spam missed": 14,
+    "test BCE": 0.07448726147413254,
+    "train BCE": 0.00939157884567976
+  },
+  "frames": 0,
+  "logged_steps": 161,
+  "run": "training_dense",
+  "seeds": {
+    "split": 0,
+    "training": 0
+  },
+  "wall_clock_s": {
+    "data_preparation": 0.09434429102111608,
+    "total": 52.941218915977515,
+    "training_and_evaluation": 52.6695675420342
+  }
+}

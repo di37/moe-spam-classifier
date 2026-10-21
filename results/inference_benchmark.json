@@ -1,0 +1,100 @@
+{
+  "environment": {
+    "cpu": "Apple M4 Max",
+    "device": "cpu",
+    "machine": "arm64",
+    "os": "Darwin 25.3.0",
+    "packages": {
+      "imageio-ffmpeg": "0.6.0",
+      "matplotlib": "3.11.2",
+      "numpy": "2.5.4",
+      "pillow": "13.0.0",
+      "torch": "2.14.1"
+    },
+    "python": "3.12.10",
+    "torch_threads": 12
+  },
+  "latency_reps": 300,
+  "models": {
+    "dense": {
+      "ms_per_1k_messages": 84.07055356443661,
+      "one_message_ms": 1.4362920192070305
+    },
+    "moe": {
+      "ms_per_1k_messages": 94.44541186311925,
+      "one_message_ms": 2.954021008918062
+    }
+  },
+  "reps": 20,
+  "sizes": {
+    "large": {
+      "batch_tokens": 8192,
+      "costs": {
+        "dense": {
+          "macs_per_token": 8388608,
+          "name": "dense",
+          "weights": 8393728
+        },
+        "moe": {
+          "macs_per_token": 8396800,
+          "name": "moe",
+          "weights": 67158016
+        },
+        "wide": {
+          "macs_per_token": 67108864,
+          "name": "wide",
+          "weights": 67142656
+        }
+      },
+      "d_ff": 4096,
+      "d_model": 1024,
+      "latency_tokens": 24,
+      "latency_us": {
+        "dense": 1308.3749799989164,
+        "moe": 12347.021023742855,
+        "wide": 4670.103982789442
+      },
+      "ms_per_1k_tokens": {
+        "dense": 7.200380924388128,
+        "moe": 11.356847107180101,
+        "wide": 62.45751440303593
+      },
+      "n_experts": 8
+    },
+    "ours": {
+      "batch_tokens": 8192,
+      "costs": {
+        "dense": {
+          "macs_per_token": 32768,
+          "name": "dense",
+          "weights": 33088
+        },
+        "moe": {
+          "macs_per_token": 32960,
+          "name": "moe",
+          "weights": 99456
+        },
+        "wide": {
+          "macs_per_token": 98304,
+          "name": "wide",
+          "weights": 99136
+        }
+      },
+      "d_ff": 256,
+      "d_model": 64,
+      "latency_tokens": 24,
+      "latency_us": {
+        "dense": 20.58298559859395,
+        "moe": 1227.8119975235313,
+        "wide": 108.95848390646279
+      },
+      "ms_per_1k_tokens": {
+        "dense": 0.20948029089140618,
+        "moe": 0.7368036492039209,
+        "wide": 0.3937683104027201
+      },
+      "n_experts": 3
+    }
+  },
+  "test_messages": 1027
+}

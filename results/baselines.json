@@ -1,0 +1,13 @@
+{
+  "bag-of-words logistic regression": {
+    "accuracy": 0.9844206426484907,
+    "errors": 16,
+    "ham flagged": 1,
+    "spam F1": 0.9316239316239316,
+    "spam missed": 15
+  },
+  "lr": 0.05,
+  "seed": 0,
+  "steps": 500,
+  "weight_decay": 0.0001
+}

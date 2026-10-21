@@ -1,0 +1,7 @@
+torch>=2.6
+numpy
+matplotlib>=3.6
+pillow
+imageio-ffmpeg
+pytest
+pytest-cov

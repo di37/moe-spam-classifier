@@ -1,0 +1,73 @@
+{
+  "args": {
+    "aux_weight": 0.0,
+    "batch_size": 64,
+    "experts": 3,
+    "frame_every": 5,
+    "lr": 0.001,
+    "no_video": true,
+    "seed": 4,
+    "steps": 800
+  },
+  "checkpoint": {
+    "path": "checkpoints/moe_noaux_seed4.pt",
+    "sha256": "a8648cac5ccc4adc03d9746bac0500810bf02cda2cacaea4382a2bdff24e12f1"
+  },
+  "command": "python train_moe.py --aux-weight 0 --seed 4 --no-video",
+  "environment": {
+    "cpu": "Apple M4 Max",
+    "device": "cpu",
+    "machine": "arm64",
+    "os": "Darwin 25.3.0",
+    "packages": {
+      "imageio-ffmpeg": "0.6.0",
+      "matplotlib": "3.11.2",
+      "numpy": "2.5.4",
+      "pillow": "13.0.0",
+      "torch": "2.14.1"
+    },
+    "python": "3.12.10",
+    "torch_threads": 12
+  },
+  "final_metrics": {
+    "accuracy": 0.9883154819863681,
+    "errors": 12,
+    "ham flagged": 3,
+    "layer 1 load": [
+      0.2213,
+      0.5924,
+      0.1863
+    ],
+    "layer 2 [CLS] top-1 expert, ham messages": [
+      0.0,
+      0.0022,
+      0.9978
+    ],
+    "layer 2 [CLS] top-1 expert, spam messages": [
+      0.0,
+      0.9113,
+      0.0887
+    ],
+    "layer 2 load": [
+      0.0172,
+      0.1503,
+      0.8325
+    ],
+    "spam F1": 0.9504132231404959,
+    "spam missed": 9,
+    "test BCE": 0.055958859622478485,
+    "train BCE": 0.009777899831533432
+  },
+  "frames": 0,
+  "logged_steps": 161,
+  "run": "training_moe_noaux_seed4",
+  "seeds": {
+    "split": 0,
+    "training": 4
+  },
+  "wall_clock_s": {
+    "data_preparation": 0.09447283297777176,
+    "total": 61.72038758295821,
+    "training_and_evaluation": 61.417756458045915
+  }
+}
