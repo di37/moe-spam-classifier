@@ -16,13 +16,14 @@ from moe_spam.viz.model_diagram.script import (
     SAMPLE_CHARS,
     SCENE_NAMES,
     captions,
+    cls_rows,
     ffn_notes,
     sample,
     savings,
     stack_notes,
     title,
 )
-from moe_spam.viz.model_diagram.stack import Stack
+from moe_spam.viz.model_diagram.stack import CX, SIZE, Stack, Y
 from moe_spam.viz.model_diagram.video import CAPTION_CHARS, ModelDiagramVideo
 from moe_spam.viz.style import FIGURE_PX
 
@@ -73,6 +74,34 @@ def test_path_goes_up_twice_and_ends_at_the_output():
     names = [name for *_, name in Stack.path()]
     assert names[0] == "input" and names[-1] == "p"
     assert names.count("moe") == 2 and names.count("attn") == 2
+
+
+def test_contains_says_whether_a_point_is_inside_a_piece():
+    w, h = SIZE["attn"]
+    assert Stack.contains("attn", CX, Y["attn"])
+    assert Stack.contains("attn", CX + w / 2 - 0.1, Y["attn"] + h / 2 - 0.1)
+    assert not Stack.contains("attn", CX, Y["attn"] + h / 2 + 0.5)
+    assert not Stack.contains("block", CX, Y["attn"])  # the block frame is not a box
+    assert Stack.contains("attn", CX, Y["attn"] + h / 2 + 0.5, margin=1.0)
+    assert Stack.box_at(CX, Y["norm1"]) == "norm1"
+    assert Stack.box_at(CX, Y["tokens"] + SIZE["tokens"][1] / 2 + 0.5, margin=1.0) == "tokens"
+    assert Stack.box_at(CX + 30, Y["norm1"]) is None
+
+
+def test_cls_rows_log_what_the_model_does_to_cls_with_real_numbers():
+    facts, trace, _ = story()
+    rows = cls_rows(trace)
+    assert [r.key for r in rows] == ["tokens", "embed", "attn1", "moe1", "attn2", "moe2",
+                                     "output"]
+    by_key = {r.key: r for r in rows}
+    assert f"{len(trace.words)} tokens" in by_key["tokens"].text
+    assert list(by_key["embed"].values) == list(trace.embeddings[0])
+    top = int(trace.cls_attention[0].argmax())
+    assert f"“{trace.words[top]}” {trace.cls_attention[0][top]:.0%}" in by_key["attn1"].text
+    assert list(by_key["moe2"].values) == list(trace.cls_probs[1])
+    assert f"expert {trace.experts[1][0] + 1}" in by_key["moe2"].text
+    assert by_key["output"].values == (trace.p_spam,)
+    assert by_key["moe1"].kind == "bars" and by_key["embed"].kind == "strip"
 
 
 def test_render_writes_every_frame(tmp_path):

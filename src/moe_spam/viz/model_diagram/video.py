@@ -1,19 +1,21 @@
 """The model diagram video: Tiny BERT + MoE drawn like a modern LLM architecture diagram.
 
-The stack is built bottom to top, a real test message's [CLS] token goes up through both
-blocks, then the MoE layer and one expert's feed-forward module are zoomed in on (with the
-trained router's choice for every token of that message), and the parameter counts of the
-trained model show what MoE saves.
+The stack is built bottom to top, and a real test message's [CLS] token goes up through both
+blocks, with a log of what each step does to it. Then the MoE layer and one expert's
+feed-forward module are zoomed in on (with the trained router's choice for every token of
+that message), and the parameter counts of the trained model show what MoE saves.
 """
 
 import numpy as np
 
 from moe_spam.model.bert import N_EXPERTS, N_LAYERS
 from moe_spam.paths import PATHS
+from moe_spam.viz.model_diagram.cls_log import draw_cls_log
 from moe_spam.viz.model_diagram.script import (
     BEATS,
     SCENE_TITLES,
     captions,
+    cls_rows,
     ffn_notes,
     sample,
     savings,
@@ -21,7 +23,7 @@ from moe_spam.viz.model_diagram.script import (
     title,
 )
 from moe_spam.viz.model_diagram.shapes import HEIGHT, WIDTH
-from moe_spam.viz.model_diagram.stack import PIECES, Stack
+from moe_spam.viz.model_diagram.stack import CX, PIECES, Stack
 from moe_spam.viz.model_diagram.zoom import (
     draw_ffn_module,
     draw_moe_connector,
@@ -29,13 +31,19 @@ from moe_spam.viz.model_diagram.zoom import (
     draw_readout,
     draw_savings,
 )
-from moe_spam.viz.motion import draw_pulse, locate, progress, token_progress
+from moe_spam.viz.motion import draw_pulse, locate_in_steps, token_progress
 from moe_spam.viz.video import FPS, Video, ease
 
 CAPTION_CHARS = 170
 BLOCK_PIECES = ("norm1", "attn", "add1", "norm2", "moe", "add2")
 STREAM_START = 0.25  # the MoE scene draws its panels first, then streams the tokens
 READOUT_TITLE = "Layer 1 router, token by token"
+DOT_R = 0.9  # the travelling token's radius; within this much of a box, the box shows it
+LOG_FADE = 0.4  # a log row fades in over this much of the step that reaches it
+# The step of the token's path each log row is written at: (piece, which time it is passed).
+LOG_STEPS = {"tokens": ("tokens", 1), "embed": ("embed", 1), "attn1": ("attn", 1),
+             "moe1": ("moe", 1), "attn2": ("attn", 2), "moe2": ("moe", 2),
+             "output": ("output", 1)}
 
 
 class ModelDiagramVideo(Video):
@@ -56,6 +64,7 @@ class ModelDiagramVideo(Video):
         self.trace = trace
         self.probs = np.asarray(probs)
         self.stack = Stack(stack_notes(facts), sample(trace.text), facts.n_layers)
+        self.rows = cls_rows(trace)
 
     def check(self):
         """Raises ``ValueError`` unless the model has two layers of three experts."""
@@ -88,14 +97,29 @@ class ModelDiagramVideo(Video):
         self._draw_zoom(ax, scene, t)
 
     def _draw_flow(self, ax, t):
-        """The [CLS] token goes up the stack, back down, up again, and out as p(spam)."""
+        """The [CLS] token goes box to box, up both blocks and out as p(spam), with its log.
+
+        Inside a box the dot is hidden: the box lights up with a "[CLS]" tag beside it, so
+        no label is covered. Each log row is written as the token reaches its step.
+        """
         path = Stack.path()
-        x, y, piece = locate(path, t)
-        last_back = max(k for k, (*_, name) in enumerate(path) if name == "block")
-        second = t >= progress(path, last_back)
+        names = [name for *_, name in path]
+        at = t * (len(path) - 1)  # how many steps of the path are done
+        x, y, heading = locate_in_steps(path, t)
+        second = at >= max(k for k, name in enumerate(names) if name == "block")
+        near = Stack.box_at(x, y, margin=DOT_R)
+        piece = near or heading
         layer = 1 + second if piece in (*BLOCK_PIECES, "block") else None
-        self.stack.draw(ax, lit=(piece,), layer=layer, result=self._result() if t >= 1 else None)
-        draw_pulse(ax, x, y, "[CLS]", radius=0.9, fontsize=10, lift=1.9)
+        self.stack.draw(ax, lit=(piece,), layer=layer,
+                        result=self._result() if near == "p" else None, token_at=near)
+        if near is None:
+            draw_pulse(ax, x, y, "[CLS]", radius=DOT_R, fontsize=10, lift=1.9,
+                       side="left" if abs(x - CX) < 0.5 else "above")
+        reach = [_nth(names, *LOG_STEPS[row.key]) for row in self.rows]
+        shown = sum(min(1.0, max(0.0, (at - k + LOG_FADE) / LOG_FADE)) for k in reach)
+        current = next((row.key for row, k in zip(self.rows[::-1], reach[::-1], strict=True)
+                        if at >= k - LOG_FADE), None)
+        draw_cls_log(ax, self.rows, shown, current)
 
     def _result(self):
         verdict = "spam" if self.trace.p_spam > 0.5 else "ham"
@@ -124,3 +148,8 @@ class ModelDiagramVideo(Video):
         if scene == "savings":
             heading, bullets = savings(self.facts)
             draw_savings(ax, heading, bullets, t * len(bullets) * 1.15, ease(t / 0.15))
+
+
+def _nth(names, name, n):
+    """Returns the index of the ``n``-th (from 1) ``name`` in ``names``."""
+    return [k for k, other in enumerate(names) if other == name][n - 1]

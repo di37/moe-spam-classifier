@@ -171,8 +171,11 @@ trained model's own numbers (`moe-spam model-diagram-video`):
 1. **The model, bottom to top:** tokenized text, token + position embeddings, the encoder
    block repeated 2×, the final LayerNorm and the output layer, annotated with the real
    sizes: a vocabulary of 3,241 tokens, a context of 64 tokens, an embedding dimension of 64.
-2. **One message through it:** a test spam's `[CLS]` token goes up through block 1, back
-   down, up through block 2, and comes out as p(spam) = 0.998.
+2. **One message through it:** a test spam's `[CLS]` token goes box to box up through
+   block 1, back down, up through block 2, and comes out as p(spam) = 0.998. Beside it, a log
+   fills in as the token reaches each step: its 24 tokens, its 64 embedding numbers, the
+   tokens its attention takes most from in each layer (43% from the phone number in layer 1),
+   each router's 3 probabilities and choice, and the p(spam) gauge.
 3. **Inside the MoE layer:** the router and its 3 feed-forward experts. Each of the
    message's 24 tokens goes through the trained router in turn: its 3 probabilities, the
    expert it is sent to, and a running count per expert (4, 8 and 12 tokens in the end).

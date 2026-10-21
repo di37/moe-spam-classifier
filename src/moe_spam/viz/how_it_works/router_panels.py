@@ -11,6 +11,7 @@ import numpy as np
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
 
 from moe_spam.viz.how_it_works.script import ROUTING, W_ROUTER
+from moe_spam.viz.panels import draw_cells
 from moe_spam.viz.style import (
     AXIS,
     EXPERT_COLORS,
@@ -65,7 +66,7 @@ def draw_softmax(ax, step, t):
     """``p = softmax(W_router · x)``: each row of weights scores one expert, then softmax."""
     vmax = np.abs(step.weights).max()  # the weights' own scale: they are much smaller than x
     ax.text(LEFT, 21.7, "$x$", fontsize=18, va="center", color=INK, **MATH)
-    _cells(ax, STRIP_X, 21.0, step.x, CELL, 1.4, len(step.x), np.abs(step.x).max())
+    draw_cells(ax, STRIP_X, 21.0, step.x, CELL, 1.4, len(step.x), np.abs(step.x).max())
     ax.text(STRIP_X, 23.4, f"the token “{step.word}” after self-attention: {len(step.x)} "
             f"numbers", fontsize=10.5, va="center", color=INK_2)
     ax.text(STRIP_X, 18.9, f"{W_ROUTER}: one row of weights per expert", fontsize=10.5,
@@ -75,7 +76,7 @@ def draw_softmax(ax, step, t):
         y = 16.4 - 2.0 * e
         ax.text(LEFT, y + 0.7, f"expert {e + 1}", fontsize=11, va="center", color=color,
                 weight="bold")
-        _cells(ax, STRIP_X, y, row, CELL, 1.4, len(row), vmax)
+        draw_cells(ax, STRIP_X, y, row, CELL, 1.4, len(row), vmax)
         if e <= scored < e + 1:  # this row is being multiplied with x
             ax.add_patch(Rectangle((STRIP_X - 0.2, y - 0.2), CELL * len(row) + 0.4, 1.8,
                                    facecolor="none", edgecolor=INK, lw=1.6))
@@ -216,19 +217,9 @@ def draw_balance(ax, balance, t):
             "the router's mean probability for it", fontsize=11, color=INK_2, **MATH)
 
 
-def _cells(ax, x0, y0, values, cell_w, cell_h, cols, vmax, alpha=1.0):
-    """Draws ``values`` as cells, ``cols`` per row from the top, darker for larger sizes."""
-    for k, v in enumerate(values):
-        row, col = divmod(k, cols)
-        grey = 0.94 - 0.82 * min(1.0, abs(v) / vmax) if vmax > 0 else 0.94
-        ax.add_patch(Rectangle((x0 + col * cell_w, y0 - row * cell_h), cell_w * 0.92,
-                               cell_h * 0.92, facecolor=(grey,) * 3, edgecolor="none",
-                               alpha=alpha))
-
-
 def _grid(ax, x0, y0, values, size, vmax, alpha=1.0):
     """Draws ``values`` as a square grid ``size`` wide, with its bottom-left at ``(x0, y0)``."""
     cols = math.ceil(math.sqrt(len(values)))
     cell = size / cols
     rows = math.ceil(len(values) / cols)
-    _cells(ax, x0, y0 + (rows - 1) * cell, values, cell, cell, cols, vmax, alpha)
+    draw_cells(ax, x0, y0 + (rows - 1) * cell, values, cell, cell, cols, vmax, alpha)

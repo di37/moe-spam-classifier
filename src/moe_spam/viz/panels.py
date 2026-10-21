@@ -1,4 +1,4 @@
-"""Drawing helpers for the training video's panels, each drawing on one matplotlib axes."""
+"""Drawing helpers shared by the videos' panels, each drawing on one matplotlib axes."""
 
 import numpy as np
 from matplotlib.patches import Patch, Rectangle
@@ -125,3 +125,25 @@ def draw_curve(ax, steps, values, color, label):
     """Draws a history as a line, with a dot on the latest point (visible even alone)."""
     ax.plot(steps, values, color=color, lw=1.5, label=label)
     ax.plot(steps[-1:], values[-1:], "o", color=color, ms=4)
+
+
+def draw_cells(ax, x0, y0, values, cell_w, cell_h, cols, vmax, alpha=1.0):
+    """Draws numbers as grey cells, ``cols`` per row from the top, darker for larger sizes.
+
+    Args:
+        ax: The axes to draw on.
+        x0: The left of the first cell.
+        y0: The bottom of the first row.
+        values: The numbers.
+        cell_w: A cell's width.
+        cell_h: A cell's height.
+        cols: Cells per row.
+        vmax: The size drawn darkest.
+        alpha: How far the cells have faded in.
+    """
+    for k, v in enumerate(values):
+        row, col = divmod(k, cols)
+        grey = 0.94 - 0.82 * min(1.0, abs(v) / vmax) if vmax > 0 else 0.94
+        ax.add_patch(Rectangle((x0 + col * cell_w, y0 - row * cell_h), cell_w * 0.92,
+                               cell_h * 0.92, facecolor=(grey,) * 3, edgecolor="none",
+                               alpha=alpha))
