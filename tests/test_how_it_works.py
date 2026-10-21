@@ -26,6 +26,7 @@ from moe_spam.viz.how_it_works.script import (
     scientific,
 )
 from moe_spam.viz.how_it_works.video import CAPTION_CHARS, TITLE, HowItWorksVideo
+from moe_spam.viz.motion import locate, progress
 from moe_spam.viz.style import FIGURE_PX, MATH_FONT
 
 TEXTS = ["win a prize call 0800 now", "see you at lunch", "win cash now call 09061701461"]
@@ -57,10 +58,10 @@ def test_path_goes_through_both_layers_and_their_experts():
 
 def test_locate_moves_from_start_to_end_along_the_path():
     path = Flowchart.path((0, 1))
-    assert Flowchart.locate(path, 0)[:2] == pytest.approx(path[0][:2])
-    assert Flowchart.locate(path, 1)[:2] == pytest.approx(path[-1][:2])
-    assert Flowchart.locate(path, 1)[2] == "clf"
-    marks = [Flowchart.progress(path, k) for k in range(len(path))]
+    assert locate(path, 0)[:2] == pytest.approx(path[0][:2])
+    assert locate(path, 1)[:2] == pytest.approx(path[-1][:2])
+    assert locate(path, 1)[2] == "clf"
+    marks = [progress(path, k) for k in range(len(path))]
     assert marks[0] == 0 and marks[-1] == pytest.approx(1) and marks == sorted(marks)
 
 

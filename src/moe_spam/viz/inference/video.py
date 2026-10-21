@@ -12,29 +12,17 @@ from moe_spam.model.bert import N_EXPERTS
 from moe_spam.paths import PATHS
 from moe_spam.viz.inference.lanes import Lanes, draw_bars, lane_labels
 from moe_spam.viz.inference.script import BEATS, SCENE_TITLES, captions
+from moe_spam.viz.motion import token_progress
 from moe_spam.viz.video import FPS, Video
 
 TITLE = "How a mixture of experts speeds up inference"
 CAPTION_CHARS = 170
 EXPERTS = N_EXPERTS
 HEADROOM = 1.35  # each chart's axis runs to this times its longest bar, leaving room for labels
-SLOW_TOKENS, SLOW_SHARE = 4, 0.5  # the first tokens take half the stream, then it speeds up
 LIT_SHARE = 0.8  # each token's layers are lit for this much of its turn
 MODEL_NAMES = {"dense": "dense model (1 expert)", "moe": f"MoE model ({N_EXPERTS} experts)"}
 LANES_RECT = [0.015, 0.03, 0.6, 0.76]
 TOP_CHART, BOTTOM_CHART = [0.70, 0.47, 0.27, 0.25], [0.70, 0.09, 0.27, 0.25]
-
-
-def token_progress(t, n):
-    """Returns how many of ``n`` tokens have gone through at progress ``t``, as a float.
-
-    The first ``SLOW_TOKENS`` take ``SLOW_SHARE`` of the stream, so they can be followed;
-    the rest go faster.
-    """
-    slow = min(SLOW_TOKENS, n)
-    if t <= SLOW_SHARE:
-        return slow * t / SLOW_SHARE
-    return min(n, slow + (n - slow) * (t - SLOW_SHARE) / (1 - SLOW_SHARE))
 
 
 def tokens_done(t, n):

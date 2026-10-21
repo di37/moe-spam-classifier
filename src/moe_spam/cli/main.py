@@ -9,11 +9,13 @@ from moe_spam.cli.video_commands import (
     EncodeVideoCommand,
     HowItWorksVideoCommand,
     InferenceVideoCommand,
+    ModelDiagramVideoCommand,
 )
 from moe_spam.errors import MoeSpamError
 
 COMMANDS = (TrainCommand(), BaselinesCommand(), BenchmarkCommand(), ArchitectureVideoCommand(),
-            InferenceVideoCommand(), HowItWorksVideoCommand(), EncodeVideoCommand())
+            InferenceVideoCommand(), HowItWorksVideoCommand(), ModelDiagramVideoCommand(),
+            EncodeVideoCommand())
 
 
 def build_parser():

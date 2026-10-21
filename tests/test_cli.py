@@ -31,7 +31,8 @@ def test_every_command_has_a_subparser():
     _, commands = build_parser()
     assert list(commands) == [c.name for c in COMMANDS]
     assert set(commands) == {"train", "baselines", "benchmark", "architecture-video",
-                             "inference-video", "how-it-works-video", "encode-video"}
+                             "inference-video", "how-it-works-video", "model-diagram-video",
+                             "encode-video"}
 
 
 def test_the_command_line_exits_with_status_zero(tiny_project):
@@ -102,6 +103,15 @@ def test_how_it_works_video_draws_the_diagram_and_the_equations(tiny_project, ca
     out = capsys.readouterr().out
     assert "message: " in out and "token: " in out
     assert len(os.listdir("frames/how_it_works")) > 0
+
+
+def test_model_diagram_video_draws_the_annotated_architecture(tiny_project, capsys):
+    main(["train", "--steps", "2", "--no-video"])
+    main(["model-diagram-video", MOE, "--fps", "1", "--no-video"])
+    out = capsys.readouterr().out
+    assert "message: " in out and "parameters" in out
+    assert len(os.listdir("frames/model_diagram")) > 0
+    assert not os.path.exists("frames/how_it_works")  # a video of its own
 
 
 def test_how_it_works_video_needs_two_layers_of_three_experts(tiny_project):

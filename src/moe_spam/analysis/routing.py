@@ -143,6 +143,19 @@ class RouterProbe:
             surest = self.model(ids).routing[layer].probs[0].max(dim=-1).values
         return max(words, key=lambda k: float(surest[k]))
 
+    def probs(self, text, layer):
+        """Returns ``[n, n_experts]``: the router's probabilities for every token of ``text``.
+
+        Raises:
+            ValueError: If the layer does not exist.
+        """
+        if not 0 <= layer < len(self.model.blocks):
+            raise ValueError(f"no layer {layer}: the model has {len(self.model.blocks)}")
+        ids = self._encode([text])
+        n = int((ids != PAD).sum())
+        with evaluating(self.model), torch.no_grad():
+            return self.model(ids).routing[layer].probs[0, :n].numpy().copy()
+
     def balance(self, texts):
         """Returns one ``LayerBalance`` per layer, over the real tokens of ``texts``."""
         with evaluating(self.model), torch.no_grad():

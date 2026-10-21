@@ -1,10 +1,12 @@
 """The commands that make and encode videos.
 
-``architecture-video``, ``inference-video``, ``how-it-works-video`` and ``encode-video``.
+``architecture-video``, ``inference-video``, ``how-it-works-video``,
+``model-diagram-video`` and ``encode-video``.
 """
 
 from moe_spam.analysis.benchmark import RECORD, SIZES, Benchmark, saved_timings
 from moe_spam.analysis.examples import ExampleFinder
+from moe_spam.analysis.model_facts import ModelFacts
 from moe_spam.analysis.routing import RouterProbe
 from moe_spam.cli.common import Command, add_fps_option, add_video_options
 from moe_spam.data.dataset import SpamData
@@ -19,6 +21,7 @@ from moe_spam.viz.architecture.video import EXPERTS, LAYERS, ArchitectureVideo
 from moe_spam.viz.encoder import VideoEncoder
 from moe_spam.viz.how_it_works.video import HowItWorksVideo
 from moe_spam.viz.inference.video import MODEL_NAMES, InferenceVideo
+from moe_spam.viz.model_diagram.video import ModelDiagramVideo
 
 
 def _ranked_examples(checkpoint, data):
@@ -129,6 +132,28 @@ class HowItWorksVideoCommand(Command):
               f"expert {step.expert + 1} (p = {step.p_i:.2f})")
         _finish(HowItWorksVideo(pick.trace, step, balance, len(data.test_messages),
                                 fps=args.fps), args)
+
+
+class ModelDiagramVideoCommand(Command):
+    """``moe-spam model-diagram-video``: the architecture diagram, animated with real numbers."""
+
+    name = "model-diagram-video"
+    help = "animate the model's annotated architecture diagram, with its real numbers"
+
+    def add_arguments(self, parser):
+        """Adds the video options."""
+        add_video_options(parser, PATHS.checkpoint(MOE_RUN))
+
+    def run(self, args, parser):
+        """Counts the model's parameters, routes the spam example, then draws the video."""
+        checkpoint = Checkpoint.load(args.checkpoint).require(n_layers=N_LAYERS,
+                                                              n_experts=N_EXPERTS)
+        pick = _ranked_examples(checkpoint, SpamData.prepare())["spam"]
+        facts = ModelFacts.of(checkpoint.model)
+        probs = RouterProbe(checkpoint.model, checkpoint.vocab).probs(pick.text, 0)
+        print(f"message: {pick.text!r}\n{facts.total_params:,} parameters, "
+              f"{facts.active_params:,} active per token")
+        _finish(ModelDiagramVideo(facts, pick.trace, probs, fps=args.fps), args)
 
 
 class EncodeVideoCommand(Command):

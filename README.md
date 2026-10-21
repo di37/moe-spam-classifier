@@ -158,6 +158,31 @@ What they show:
   loop over the experts, and the load-balancing loss computed even at inference. Production
   MoE code runs all experts in one grouped operation and skips the training-only parts.
 
+### 5. The model as an architecture diagram
+
+![Tiny BERT + Mixture of Experts (444K)](media/model_diagram.gif)
+
+[Full video (MP4)](media/model_diagram.mp4)
+
+The whole model drawn the way large language models are usually drawn (in the style of
+Sebastian Raschka's LLM architecture diagrams, such as DeepSeek V3's), and animated with the
+trained model's own numbers (`moe-spam model-diagram-video`):
+
+1. **The model, bottom to top:** tokenized text, token + position embeddings, the encoder
+   block repeated 2×, the final LayerNorm and the output layer, annotated with the real
+   sizes: a vocabulary of 3,241 tokens, a context of 64 tokens, an embedding dimension of 64.
+2. **One message through it:** a test spam's `[CLS]` token goes up through block 1, back
+   down, up through block 2, and comes out as p(spam) = 0.998.
+3. **Inside the MoE layer:** the router and its 3 feed-forward experts. Each of the
+   message's 24 tokens goes through the trained router in turn: its 3 probabilities, the
+   expert it is sent to, and a running count per expert (4, 8 and 12 tokens in the end).
+4. **Inside one expert:** Linear 64 → 256, GELU, Linear 256 → 64: 33,088 parameters.
+5. **What MoE saves:** the model has 444,417 parameters, but a token goes through only
+   312,065 of them (70%), because 2 of the 3 experts in each layer do nothing for it.
+
+Every number is read from the trained checkpoint: the parameter counts are counted on the
+model itself, and the routing and p(spam) come from running it on the message.
+
 ## Results after 800 steps (default settings)
 
 On the 1,027 test messages (124 spam, 903 ham):
@@ -352,6 +377,7 @@ moe-spam architecture-video             # video 1, from the trained model in che
 moe-spam inference-video                # video 4: measures layers and both models, then draws
 moe-spam inference-video --reuse        # video 4 again, with the timings already saved
 moe-spam how-it-works-video             # the diagram and routing equations, animated
+moe-spam model-diagram-video            # video 5: the architecture diagram, animated
 moe-spam benchmark                      # only the layer timings, into results/
 ```
 
@@ -494,6 +520,7 @@ src/moe_spam/
     trace.py              follow one message through a trained model
     examples.py           pick the example messages the videos show
     routing.py            the router's arithmetic for one token, and each layer's balance
+    model_facts.py        the model's sizes and parameter counts (total and per token)
     benchmark.py          count the work and weights of dense vs MoE layers, and time them
   training/
     config.py             TrainingConfig: every setting, its default and the run name
@@ -515,6 +542,9 @@ src/moe_spam/
                           script, video
     how_it_works/         the "how it works" video: the diagram, the routing equations'
                           drawings, script, video
+    model_diagram/        the architecture-diagram video: shapes, the stack, the zoomed-in
+                          MoE layer and expert, script, video
+    motion.py             movement shared by the videos: a travelling token, a token stream
   cli/                    the moe-spam command: one Command class per subcommand
 tests/                    pytest suite
 results/                  run records written by the commands
@@ -531,4 +561,6 @@ Yamakami: *Contributions to the Study of SMS Spam Filtering: New Collection and 
 ACM DocEng 2011, distributed by the UCI Machine Learning Repository. The authors ask that
 work using it cite that paper and the collection's web page; their full terms are in the
 `readme` inside the download. The video layout and the "same inputs every frame" approach come from the
-sibling `ddpm-animation` project. Chart colors follow a colorblind-checked palette.
+sibling `ddpm-animation` project. The architecture-diagram video follows the layout of
+Sebastian Raschka's LLM architecture diagrams. Chart colors follow a colorblind-checked
+palette.

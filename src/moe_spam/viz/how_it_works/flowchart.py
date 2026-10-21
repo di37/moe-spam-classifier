@@ -4,7 +4,7 @@ Coordinates are in a 100 × 19.4 box whose units are square on screen.
 """
 
 import numpy as np
-from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Polygon
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon
 
 from moe_spam.viz.style import AXIS, EXPERT_COLORS, HIGHLIGHT, INK, INK_2, MUTED, SURFACE, blend
 
@@ -35,7 +35,7 @@ ARROWS = {"tokens": (9.5, 12.5), "embed": (24.5, 27.5), "attn": (40.0, 45.5),
 
 
 class Flowchart:
-    """Draws the diagram, and a token travelling through it."""
+    """Draws the diagram; ``path`` is the way a token travels through it."""
 
     @classmethod
     def draw(cls, ax, shown=None, lit=(), chosen=0, layer=None, all_experts=False):
@@ -82,32 +82,6 @@ class Flowchart:
                (FRAME[1], MID, "final"), (cls._centre("final"), MID, "final"),
                (cls._centre("clf"), MID, "clf")]
         return [*start, *layer, first, *up, *loop, *layer, second, *end]
-
-    @staticmethod
-    def progress(waypoints, index):
-        """Returns how far along ``waypoints`` (0 to 1, by length) waypoint ``index`` is."""
-        lengths = _lengths(waypoints)
-        return float(lengths[index] / lengths[-1])
-
-    @staticmethod
-    def locate(waypoints, t):
-        """Returns ``(x, y, piece)`` of a token ``t`` (0 to 1, by length) along ``waypoints``.
-
-        The piece is the one the token is heading for (or has reached).
-        """
-        points, lengths = np.array([(x, y) for x, y, _ in waypoints]), _lengths(waypoints)
-        at = float(np.clip(t, 0, 1)) * lengths[-1]
-        k = min(int(np.searchsorted(lengths, at, side="right")) - 1, len(points) - 2)
-        share = (at - lengths[k]) / max(lengths[k + 1] - lengths[k], 1e-9)
-        x, y = points[k] + share * (points[k + 1] - points[k])
-        return float(x), float(y), waypoints[k + 1][2] if share > 0 else waypoints[k][2]
-
-    @staticmethod
-    def draw_pulse(ax, x, y, label):
-        """Draws the travelling token at ``(x, y)``, with its ``label`` above it."""
-        ax.add_patch(Circle((x, y), 0.75, facecolor=INK, edgecolor=SURFACE, lw=1.5, zorder=6))
-        ax.text(x, y + 1.3, label, ha="center", fontsize=10, color=INK, weight="bold",
-                zorder=6)
 
     @staticmethod
     def _centre(piece):
@@ -170,12 +144,6 @@ class Flowchart:
                                         edgecolor="none", alpha=alpha))
             ax.text((x0 + x1) / 2, y, f"expert {e + 1}", ha="center", va="center",
                     fontsize=10, color="white" if bright else INK, alpha=alpha)
-
-
-def _lengths(waypoints):
-    """Returns the distance along ``waypoints`` to each of them."""
-    points = np.array([(x, y) for x, y, _ in waypoints])
-    return np.r_[0, np.cumsum(np.hypot(*np.diff(points, axis=0).T))]
 
 
 def _arrow(ax, x0, x1, alpha):

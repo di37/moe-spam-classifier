@@ -30,6 +30,7 @@ from moe_spam.viz.how_it_works.script import (
     legend,
     plain,
 )
+from moe_spam.viz.motion import draw_pulse, locate, progress
 from moe_spam.viz.style import EXPERT_COLORS, INK, INK_2, MUTED
 from moe_spam.viz.video import FPS, Video
 
@@ -109,12 +110,12 @@ class HowItWorksVideo(Video):
         trace = self.trace
         experts = tuple(layer[0] for layer in trace.experts)
         path = Flowchart.path(experts)
-        x, y, piece = Flowchart.locate(path, t)
+        x, y, piece = locate(path, t)
         last_loop = max(k for k, (*_, name) in enumerate(path) if name == "loop")
-        second = t >= Flowchart.progress(path, last_loop)
+        second = t >= progress(path, last_loop)
         Flowchart.draw(flow, lit=(piece,), chosen=experts[second], layer=1 + second)
-        Flowchart.draw_pulse(flow, x, y, "[CLS]")
-        milestones = [Flowchart.progress(path, k) for k, (*_, name) in enumerate(path)
+        draw_pulse(flow, x, y, "[CLS]")
+        milestones = [progress(path, k) for k, (*_, name) in enumerate(path)
                       if name == "experts"] + [1.0]
         verdict = "spam" if trace.p_spam > 0.5 else "ham"
         rows = [(EXPERT_COLORS[e], f"layer {n}: [CLS] → expert {e + 1}",
